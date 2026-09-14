@@ -90,7 +90,7 @@ export function SettingsScreen({
       <ConfirmDialog
         visible={confirm}
         title="Apagar todos os dados?"
-        message="Isso apaga conquistas, atividades diárias e preferências deste aplicativo no aparelho. Não é possível desfazer."
+        message="Isso apaga etapas, conquistas, XP, sementes, compras virtuais, equipamentos, jardim, tarefas e preferências. O perfil local reinicia com o presente inicial. Não é possível desfazer."
         confirmLabel="Apagar e recomeçar"
         busy={resetBusy}
         onCancel={() => setConfirm(false)}
@@ -104,7 +104,7 @@ export function SettingsScreen({
         }}
       />
       <Text style={styles.version}>
-        ANXIETICS · MVP 0.2{'\n'}Projeto de TCC · Vinícius Peres Ledis dos
+        ANXIETICS · MVP 0.3{'\n'}Projeto de TCC · Vinícius Peres Ledis dos
         Santos
       </Text>
     </ScrollView>

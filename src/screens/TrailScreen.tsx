@@ -1,3 +1,4 @@
+import { EconomySummary } from '../economy/EconomySummary';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Progress } from '../domain/progress';
@@ -17,9 +18,16 @@ type Props = {
   progress: Progress;
   onPlay: (session: Omit<Session, 'id'>) => void;
   onSettings: () => void;
+  onEconomy: (screen: 'shop' | 'inventory' | 'garden' | 'achievements') => void;
   onDev?: () => void;
 };
-export function TrailScreen({ progress, onPlay, onSettings, onDev }: Props) {
+export function TrailScreen({
+  progress,
+  onPlay,
+  onSettings,
+  onDev,
+  onEconomy,
+}: Props) {
   const [tab, setTab] = useState<'trail' | 'daily' | 'free'>('trail');
   const completeCount = STAGES.filter((stage) =>
     progress.completedStageIds.includes(stage.id),
@@ -43,11 +51,29 @@ export function TrailScreen({ progress, onPlay, onSettings, onDev }: Props) {
       <Text style={[common.body, { marginTop: 10 }]}>
         Explore um gesto novo. Volte quando quiser.
       </Text>
+      <EconomySummary progress={progress} />
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        <Button secondary label="Loja" onPress={() => onEconomy('shop')} />
+        <Button
+          secondary
+          label="Inventário"
+          onPress={() => onEconomy('inventory')}
+        />
+        <Button
+          secondary
+          label="Meu jardim"
+          onPress={() => onEconomy('garden')}
+        />
+        <Button
+          secondary
+          label="Conquistas"
+          onPress={() => onEconomy('achievements')}
+        />
+      </View>
       <View style={styles.summary}>
         <Text style={styles.summaryText}>
-          Trilha: {completeCount}/{STAGES.length} etapas
+          Trilha: {completeCount}/{STAGES.length} · Hoje: {today}/3 atividades
         </Text>
-        <Text style={styles.summaryText}>Hoje: {today}/3 atividades</Text>
         <Text
           accessibilityLabel={`${completeCount} detalhes no jardim`}
           style={{ fontSize: 23, color: colors.green }}
@@ -196,8 +222,8 @@ export function TrailScreen({ progress, onPlay, onSettings, onDev }: Props) {
             </View>
           ))}
           <Text style={styles.small}>
-            Jogar pela trilha não marca estas tarefas. Elas têm seu próprio
-            registro, sem mudar suas conquistas.
+            Uma partida guiada pode concluir uma etapa e a tarefa do mesmo jogo
+            e variação. As recompensas aparecem juntas no resultado.
           </Text>
         </>
       )}
@@ -205,7 +231,8 @@ export function TrailScreen({ progress, onPlay, onSettings, onDev }: Props) {
         <>
           <Text style={common.eyebrow}>CAMPOS ABERTOS</Text>
           <Text style={styles.small}>
-            Repita qualquer jogo liberado. Sem alterar tarefas ou conquistas.
+            Repita qualquer jogo liberado. Sem sementes, XP ou avanço nas
+            conquistas nesta versão.
           </Text>
           {unlockedGames(progress.completedStageIds).map((game) => (
             <View key={game} style={styles.card}>

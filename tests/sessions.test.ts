@@ -10,12 +10,12 @@ import {
 import { STAGES, unlockedGames } from '../src/trail/stages';
 const now = new Date(2026, 8, 14, 12);
 
-test('trilha, tarefa diária e modo livre têm efeitos separados', () => {
+test('trilha pode marcar diária correspondente; modo livre permanece sem recompensas', () => {
   const first = initialProgress(now);
   const trail = completeStage(first, 'jardim', now);
   assert.deepEqual(trail.completedStageIds, ['jardim']);
-  assert.ok(trail.daily.tasks.every((task) => !task.completed));
-  const task = trail.daily.tasks[0]!;
+  assert.equal(trail.daily.tasks.filter((task) => task.completed).length, 1);
+  const task = trail.daily.tasks.find((task) => !task.completed)!;
   const daily = completeSession(
     trail,
     {
@@ -28,7 +28,7 @@ test('trilha, tarefa diária e modo livre têm efeitos separados', () => {
     },
     now,
   );
-  assert.equal(daily.daily.tasks.filter((item) => item.completed).length, 1);
+  assert.equal(daily.daily.tasks.filter((item) => item.completed).length, 2);
   assert.deepEqual(daily.completedStageIds, ['jardim']);
   const free = completeSession(
     daily,
@@ -50,7 +50,7 @@ test('partida duplicada é idempotente; ids de partida têm memória limitada', 
   assert.equal(completeSession(once, session, now), once);
   let p = once;
   for (let i = 0; i < 200; i++)
-    p = completeSession(p, { ...session, id: String(i), mode: 'free' }, now);
+    p = completeSession(p, { ...session, id: String(i), mode: 'trail' }, now);
   assert.equal(p.recentSessionIds.length, 64);
   assert.deepEqual(p.completedStageIds, ['jardim']);
 });
@@ -68,7 +68,10 @@ test('tarefas ficam estáveis ao reabrir e desbloquear; renovam apenas ao mudar 
   let p = initialProgress(now);
   const tasks = p.daily;
   for (const stage of STAGES) p = completeStage(p, stage.id, now);
-  assert.deepEqual(p.daily, tasks);
+  assert.deepEqual(
+    p.daily.tasks.map((t) => [t.id, t.game, t.variation]),
+    tasks.tasks.map((t) => [t.id, t.game, t.variation]),
+  );
   assert.deepEqual(decodeProgress(JSON.stringify(p), now), p);
   const next = renewDay(p, new Date(2026, 8, 15));
   assert.deepEqual(next.completedStageIds, p.completedStageIds);

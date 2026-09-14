@@ -30,6 +30,7 @@ import {
 } from './coverage';
 
 import { GameProps } from '../types';
+import { MowerArt } from './MowerArt';
 
 export const GrassGame = memo(function GrassGame({
   variation,
@@ -37,7 +38,11 @@ export const GrassGame = memo(function GrassGame({
   enabled,
   onProgress,
   onComplete,
+  grassEquipment,
 }: GameProps) {
+  const radius = grassEquipment?.radius ?? 25;
+  const mowerColor = grassEquipment?.color ?? '#E8C86D';
+  const mowerWidth = grassEquipment?.width ?? 1;
   const stage = GRASS_VARIATIONS[variation % 3]!;
   const initial = useMemo(createCoverage, []);
   const coverage = useSharedValue(initial);
@@ -62,7 +67,12 @@ export const GrassGame = memo(function GrassGame({
     previous.value = point;
     coverage.modify((current) => {
       'worklet';
-      const { changed, justCompleted } = cutSegment(current, from, point);
+      const { changed, justCompleted } = cutSegment(
+        current,
+        from,
+        point,
+        radius,
+      );
 
       if (changed.length > 0) {
         cutPath.modify((path) => {
@@ -185,56 +195,7 @@ export const GrassGame = memo(function GrassGame({
               />
             </Group>
             <Group transform={mowerTransform}>
-              <Circle cx={0} cy={0} r={25} color="#FFFBE0" opacity={0.2} />
-              <RoundedRect
-                x={-20}
-                y={-12}
-                width={9}
-                height={26}
-                r={4}
-                color="#233C32"
-              />
-              <RoundedRect
-                x={11}
-                y={-12}
-                width={9}
-                height={26}
-                r={4}
-                color="#233C32"
-              />
-              <RoundedRect
-                x={-15}
-                y={-20}
-                width={30}
-                height={40}
-                r={10}
-                color="#274D38"
-              />
-              <RoundedRect
-                x={-14}
-                y={-21}
-                width={28}
-                height={33}
-                r={9}
-                color="#E8C86D"
-              />
-              <RoundedRect
-                x={-9}
-                y={-17}
-                width={18}
-                height={10}
-                r={4}
-                color="#F5DE9C"
-              />
-              <Circle cx={0} cy={2} r={5} color="#7C703F" />
-              <RoundedRect
-                x={-9}
-                y={14}
-                width={18}
-                height={4}
-                r={2}
-                color="#F2DB99"
-              />
+              <MowerArt color={mowerColor} width={mowerWidth} />
             </Group>
           </Group>
         </Canvas>

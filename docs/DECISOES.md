@@ -1,4 +1,4 @@
-# Registro de decisões do MVP 0.2
+# Registro de decisões do MVP 0.3
 
 Data: 14/09/2026. Autor do projeto acadêmico: Vinícius Peres Ledis dos Santos.
 
@@ -24,8 +24,8 @@ A investigação futura pode observar engajamento e percepção de relaxamento. 
 | Conclusão em 95% | Evita caça aos últimos fragmentos. O 100% mostrado depois representa a finalização visual automática; o motor mantém a contagem real do instante de conclusão. |
 | Navegação por estado | Adequada a trilha, jogo e ajustes; botão voltar do Android tratado. Sem deep links e histórico de navegação complexo nesta entrega. |
 | AsyncStorage com JSON versionado e fila | Persistência simples, sem conta nem backend. Fila impede que uma escrita lenta antiga sobrescreva uma nova; o app só libera a interação após ler o estado inicial. Falhas não são ocultadas. |
-| Conquista como etapa concluída | Evita um segundo saldo de recompensas que poderia divergir. Concluir novamente é idempotente. Não existe pontuação de saúde. |
-| Dia local com três tarefas fixas | Seleção determinística entre jogos já liberados, com variações quando há poucas opções. Fica salva até mudar a data. Trilha, tarefas e modo livre têm efeitos separados. Sem histórico de calendário nem sanção por ausência. |
+| Economia local na entrega 0.3 | XP permanente e sementes gastáveis são separados da trilha. Um único snapshot contém saldo, propriedade, equipamentos e marcos. Não existe pontuação de saúde. |
+| Dia local com três tarefas fixas | Seleção determinística entre jogos já liberados, com variações quando há poucas opções. Fica salva até mudar a data. Trilha e tarefas mantêm registros próprios; a entrega 0.3 permite reconhecer ambos numa partida guiada correspondente. O modo livre não remunera. Sem histórico de calendário nem sanção por ausência. |
 | Movimento reduzido | Conclusão por opacidade, encaixes e divisão de frutas usam transições curtas; tinta cresce suavemente. O ajuste local ou do sistema elimina essas animações. O gesto necessário para jogar permanece. Sem flashes, sons ou vibração. |
 
 ## Fontes oficiais consultadas
@@ -67,11 +67,27 @@ Pausar ou abrir a confirmação de reinício desabilita o gesto. Segundo plano p
 
 `GameScreen` possui uma trava de conclusão e identifica cada tentativa. `completeSession` valida contexto, jogo liberado e tarefa/etapa correspondente. A lista de sessões recentes é limitada a 64; mesmo depois desse limite, uma etapa já conquistada ou tarefa já marcada não pode recompensar novamente. Partidas do laboratório e suas repetições livres são isoladas do domínio persistente.
 
-A versão 2 mantém a chave histórica de armazenamento e migra JSON v1. Clareira e Bosque, antigos campos de grama, permanecem como conquistas históricas, mostradas no resumo; não liberam automaticamente jogos novos. O Jardim preserva sua conquista na primeira etapa. Uma versão desconhecida continua sendo erro, sem apagar dados automaticamente.
+Na entrega 0.2, a versão 2 manteve a chave histórica de armazenamento e migrou JSON v1. Clareira e Bosque, antigos campos de grama, permanecem como conquistas históricas, mostradas no resumo; não liberam automaticamente jogos novos. O Jardim preserva sua conquista na primeira etapa. Uma versão desconhecida continua sendo erro, sem apagar dados automaticamente.
 
 O trio diário é determinado pela data e pelos jogos liberados naquele momento, salvo como três tarefas identificadas por data e posição. Abrir o app várias vezes ou desbloquear outro jogo não troca o trio. Uma tarefa de ontem não marca uma tarefa de hoje. Recuar a data do aparelho pode renovar tarefas, limitação aceita sem sistema antifraude.
 
 Apagar dados escreve o estado inicial no fim da mesma fila e só o publica depois de gravar. Atualizações e novas tentativas de salvar ficam bloqueadas durante essa operação; uma falha preserva o estado atual em memória e permite tentar de novo.
+
+## Economia e jardim na entrega 0.3
+
+Não foram adicionadas dependências nem substituídos a navegação, o motor de área ou os 14 jogos. A nova pasta `economy` contém configuração, catálogo, regras puras, validação e arte dos oito itens. Loja e inventário reutilizam uma tela com filtros; jardim e conquistas têm telas próprias.
+
+A mudança importante de persistência é **calcular → gravar → publicar**. A fila de transações calcula a próxima ação sobre o último estado confirmado, em vez de montar snapshots concorrentes nos componentes. Compra é desconto e aquisição no mesmo JSON. Falhar mantém o estado anterior e oferece nova tentativa; a tela de resultado não anuncia recebimento antes de confirmar. O carregamento inicial compartilha uma única promessa para impedir migrações concorrentes sobrescrevendo uma compra recente.
+
+A versão 3 migra v1/v2 pela mesma chave. O presente inicial de 50 sementes é salvo com `gift:initial`. Etapas/tarefas antigas entram como processadas, e conquistas já elegíveis são preservadas sem remunerar retrospectivamente. O XP inicial é zero. Registro de eventos durável impede pagamento repetido; 64 comprovantes recentes bastam para reapresentar uma conclusão, sem limitar a proteção dos eventos anteriores.
+
+Uma partida guiada corresponde à etapa pelo tipo de jogo e à tarefa diária pelo tipo e variação. Qualquer variação guiada pode apresentar o jogo suficiente para concluir sua etapa disponível. O modo livre não avança os marcos remunerados, para cumprir a regra de nenhuma semente/XP em repetição livre. A descrição de Explorador explicita essa regra. O diário iniciado ontem não marca um convite de hoje; a etapa pendente ainda pode ser reconhecida. Retry de gravação usa o dia atual e não restaura o trio antigo.
+
+O padrão de grama mantém raio 25. A ferramenta paga usa 31,25, o mesmo algoritmo de cápsula e o mesmo campo. Aparência muda apenas a cor do desenho compartilhado com a loja. Não houve redução de conforto no padrão nem multiplicador de recompensa. A diferença exibida é discretizada pela malha e pelo percentual inteiro, não uma promessa de economia exata de tempo.
+
+Cinco posições aceitam as cinco decorações, sem editor livre. Uma decoração é uma propriedade única do inventário; seu ID aparece no máximo uma vez no mapa do jardim. Colocação substitui/move, nunca destrói o item. Fonte, árvore e demais artes são formas Skia originais e estáticas; não exigem som ou movimento.
+
+Sementes não têm valor monetário. Não há pagamento, anúncio, consumível, oferta temporária, ranking ou pressão por sequência. Os valores pedidos são hipóteses de balanceamento do protótipo, não resultado de pesquisa de engajamento. A economia ainda deve ser observada com usuários quanto à compreensão e ao esforço para adquirir os itens.
 
 ## Limitações e validação seguinte
 

@@ -14,7 +14,9 @@ import { fitField } from '../minigames/grass/coverage';
 import { GAME_COMPONENTS } from '../minigames/catalog';
 import { GAME_INFO } from '../minigames/definitions';
 import { Session } from '../minigames/types';
-import { localDay } from '../domain/progress';
+import { localDay, Progress } from '../domain/progress';
+import { grassEquipment } from '../economy/rules';
+import { TransactionResult } from '../storage/transactions';
 import { Button } from '../ui/Button';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { colors, common } from '../ui/theme';
@@ -23,7 +25,10 @@ type Props = {
   session: Session;
   reducedMotion: boolean;
   onExit: () => void;
-  onComplete: (session: Session) => void;
+  progress: Progress;
+  onShop: () => void;
+  onContinue: () => void;
+  onComplete: (session: Session) => Promise<TransactionResult>;
   onFree: () => void;
 };
 export function GameScreen({
@@ -32,7 +37,16 @@ export function GameScreen({
   onExit,
   onComplete,
   onFree,
+  progress,
+  onShop,
+  onContinue,
 }: Props) {
+  const [loadout] = useState(() => grassEquipment(progress.economy));
+  const [savingResult, setSavingResult] = useState(false);
+  const [savedResult, setSavedResult] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const completionSession = useRef<Session | null>(null);
+  const sending = useRef(false);
   const [percent, setPercent] = useState(0);
   const [complete, setComplete] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -62,6 +76,25 @@ export function GameScreen({
       sub.remove();
     };
   }, []);
+  const saveCompletion = useCallback(
+    async (ended: Session) => {
+      if (sending.current) return;
+      sending.current = true;
+      setSavingResult(true);
+      setSaveError('');
+      try {
+        const result = await onComplete(ended);
+        if (mounted.current && completionSession.current?.id === ended.id) {
+          setSavedResult(result.ok);
+          if (!result.ok) setSaveError(result.message);
+        }
+      } finally {
+        sending.current = false;
+        if (mounted.current) setSavingResult(false);
+      }
+    },
+    [onComplete],
+  );
   const finish = useCallback(() => {
     if (
       !mounted.current ||
@@ -72,11 +105,16 @@ export function GameScreen({
     completed.current = true;
     setPercent(100);
     setComplete(true);
-    onComplete({ ...session, id: `${session.id}:${attempt}` });
+    const ended = {
+      ...session,
+      id: `${session.id}:${attempt}`,
+    };
+    completionSession.current = ended;
+    void saveCompletion(ended);
     AccessibilityInfo.announceForAccessibility(
       'Atividade concluída. Você pode repetir ou voltar à trilha.',
     );
-  }, [attempt, session, onComplete]);
+  }, [attempt, session, saveCompletion]);
   const report = useCallback(
     (value: number) => {
       if (
@@ -106,6 +144,9 @@ export function GameScreen({
     return () => animation.stop();
   }, [complete, reducedMotion, foreground, paused, opacity]);
   const restart = () => {
+    completionSession.current = null;
+    setSavedResult(false);
+    setSaveError('');
     completed.current = false;
     currentAttempt.current += 1;
     setAttempt(currentAttempt.current);
@@ -121,6 +162,10 @@ export function GameScreen({
       old.width === width && old.height === height ? old : { width, height },
     );
   };
+  const receipt = progress.economy.receipts.find(
+    (r) => r.sessionId === `${session.id}:${attempt}`,
+  );
+  const confirmed = savedResult || !!receipt;
   const field = fitField(Math.min(bounds.width - 24, 520), bounds.height - 20);
   const modeLabel = {
     trail: 'TRILHA',
@@ -135,12 +180,21 @@ export function GameScreen({
           secondary
           label="‹  Voltar"
           onPress={onExit}
+          disabled={savingResult}
           style={styles.back}
         />
         <Text style={common.eyebrow}>{modeLabel}</Text>
       </View>
       <View style={styles.intro}>
         <Text style={styles.title}>{info.name}</Text>
+        {session.game === 'grass' && (
+          <Text
+            testID="grass-loadout"
+            style={{ color: colors.muted, fontSize: 12, marginTop: 6 }}
+          >
+            {loadout.name}
+          </Text>
+        )}
         <View style={styles.progressLabel}>
           <Text style={styles.instruction}>
             {openEnded ? info.freeInstruction : info.instruction}
@@ -208,6 +262,7 @@ export function GameScreen({
               enabled={enabled}
               reducedMotion={reducedMotion}
               color={color}
+              grassEquipment={loadout}
               onProgress={report}
               onComplete={finish}
             />
@@ -242,8 +297,92 @@ export function GameScreen({
                     ? 'O dia mudou durante a rodada. As novas tarefas estão na trilha.'
                     : 'Você pode seguir ou brincar mais um pouco.'}
               </Text>
-              <Button label="Voltar à trilha" onPress={onExit} />
-              <Button secondary label="Jogar livremente" onPress={onFree} />
+              {savingResult && (
+                <Text style={styles.completeBody}>
+                  Confirmando o salvamento…
+                </Text>
+              )}
+              {!confirmed && !!saveError && (
+                <>
+                  <Text
+                    accessibilityLiveRegion="polite"
+                    style={styles.completeBody}
+                  >
+                    {saveError}
+                  </Text>
+                  <Button
+                    label="Tentar salvar conclusão"
+                    disabled={savingResult}
+                    onPress={() => {
+                      if (completionSession.current)
+                        void saveCompletion(completionSession.current);
+                    }}
+                  />
+                </>
+              )}
+              {confirmed && receipt && (
+                <View testID="reward-breakdown" style={{ gap: 9 }}>
+                  {receipt.completed.map((label, i) => (
+                    <Text key={i} style={styles.completeBody}>
+                      {label}
+                    </Text>
+                  ))}
+                  {receipt.lines.map((line) => (
+                    <Text key={line.eventId} style={styles.completeBody}>
+                      {line.label}: +{line.seeds} sementes · +{line.xp} XP
+                    </Text>
+                  ))}
+                  <Text
+                    testID="rewards-total"
+                    style={{
+                      color: colors.green,
+                      fontSize: 17,
+                      fontWeight: '600',
+                      textAlign: 'center',
+                    }}
+                  >
+                    Recebido: {receipt.lines.reduce((n, l) => n + l.seeds, 0)}{' '}
+                    sementes · {receipt.lines.reduce((n, l) => n + l.xp, 0)} XP
+                  </Text>
+                  {receipt.levelAfter > receipt.levelBefore && (
+                    <Text style={styles.completeBody}>
+                      Novo nível: {receipt.levelAfter}
+                    </Text>
+                  )}
+                  <Text style={styles.completeBody}>
+                    Saldo: {progress.economy.seeds} sementes · Nível{' '}
+                    {receipt.levelAfter}
+                  </Text>
+                </View>
+              )}
+              {confirmed && !receipt && session.mode === 'free' && (
+                <Text style={styles.completeBody}>
+                  Modo livre: sem sementes ou XP. Continue no seu ritmo.
+                </Text>
+              )}
+              <Button
+                label="Continuar trilha"
+                disabled={!confirmed || savingResult}
+                onPress={onContinue}
+              />
+              <Button
+                secondary
+                label="Visitar loja"
+                disabled={!confirmed || savingResult}
+                onPress={onShop}
+              />
+              <Button
+                secondary
+                label="Voltar à trilha"
+                disabled={savingResult}
+                onPress={onExit}
+              />
+              <Button
+                secondary
+                label="Jogar livremente"
+                disabled={!confirmed || savingResult}
+                onPress={onFree}
+              />
             </ScrollView>
           </Animated.View>
         )}
@@ -253,6 +392,7 @@ export function GameScreen({
           <Button
             secondary
             label="Recomeçar"
+            disabled={savingResult}
             style={{ flex: 1 }}
             onPress={() => setConfirmRestart(true)}
           />

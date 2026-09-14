@@ -16,7 +16,7 @@ export function SaveNotice({
       <Text style={styles.text}>
         {status === 'saving'
           ? 'Salvando no aparelho…'
-          : 'Não foi possível salvar. Seu progresso ainda está nesta sessão.'}
+          : 'Não foi possível salvar a alteração. O último estado confirmado foi preservado.'}
       </Text>
       {status === 'error' && (
         <Button secondary label="Tentar salvar novamente" onPress={retry} />

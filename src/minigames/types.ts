@@ -24,6 +24,12 @@ export type GameProps = {
   enabled: boolean;
   reducedMotion: boolean;
   color: number;
+  grassEquipment?: {
+    radius: number;
+    width: number;
+    color: string;
+    name: string;
+  };
   onProgress: (percent: number) => void;
   onComplete: () => void;
 };

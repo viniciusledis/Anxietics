@@ -191,7 +191,7 @@ const assert = require('node:assert/strict');
         { exact: true },
       ),
     ).toBeVisible();
-    await expect.poll(async () => (await saved()).version).toBe(2);
+    await expect.poll(async () => (await saved()).version).toBe(3);
     assert.deepEqual((await saved()).completedStageIds, old.completedStageIds);
     assert.equal(
       (await saved()).daily.tasks.filter((t) => t.completed).length,
@@ -211,7 +211,7 @@ const assert = require('node:assert/strict');
     ).toBeDisabled();
     assert.deepEqual(errors, []);
     console.log(
-      'Ciclo de vida web aprovado: tinta animada/pausada, retorno de pedra, rega em segundo plano simulado, saída, variações de luzes/frutas e migração v1→v2.',
+      'Ciclo de vida web aprovado: tinta animada/pausada, retorno de pedra, rega em segundo plano simulado, saída, variações de luzes/frutas e migração v1→v3.',
     );
   } finally {
     await browser.close();

@@ -1,3 +1,8 @@
+import { ShopScreen } from '../screens/ShopScreen';
+import { GardenScreen } from '../screens/GardenScreen';
+import { AchievementsScreen } from '../screens/AchievementsScreen';
+import { STAGES, getStageStatus } from '../trail/stages';
+import { localDay } from '../domain/progress';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, BackHandler, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,7 +22,16 @@ import { useReducedMotion } from '../ui/useReducedMotion';
 const DEV_TOOLS = __DEV__ && process.env.EXPO_PUBLIC_DEV_TOOLS === '1';
 let serial = 0;
 type Screen =
-  | { name: 'trail' | 'settings' | 'dev' }
+  | {
+      name:
+        | 'trail'
+        | 'settings'
+        | 'dev'
+        | 'shop'
+        | 'inventory'
+        | 'garden'
+        | 'achievements';
+    }
   | { name: 'game'; session: Session };
 export function AppNavigator() {
   const store = useProgress();
@@ -29,13 +43,13 @@ export function AppNavigator() {
   const exit = useCallback(() => setScreen({ name: 'trail' }), []);
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (store.resetBusy) return true;
+      if (store.resetBusy || store.busy) return true;
       if (screen.name === 'trail') return false;
       exit();
       return true;
     });
     return () => sub.remove();
-  }, [screen.name, exit, store.resetBusy]);
+  }, [screen.name, exit, store.resetBusy, store.busy]);
   const play = (selection: Omit<Session, 'id'>) => {
     if (!store.progress) return;
     if (selection.mode === 'dev' || selection.sandbox) {
@@ -46,7 +60,11 @@ export function AppNavigator() {
       return;
     setScreen({
       name: 'game',
-      session: { ...selection, id: `${Date.now()}:${++serial}` },
+      session: {
+        ...selection,
+        day: selection.day ?? localDay(),
+        id: `${Date.now()}:${++serial}`,
+      },
     });
   };
   return (
@@ -81,7 +99,7 @@ export function AppNavigator() {
               <ConfirmDialog
                 visible={confirmReset}
                 title="Apagar dados locais?"
-                message="As conquistas, tarefas e preferências deste aplicativo serão apagadas."
+                message="Etapas, conquistas, XP, sementes, compras virtuais, equipamentos, jardim e preferências serão apagados. Isso reinicia o perfil local."
                 confirmLabel="Apagar e recomeçar"
                 busy={store.resetBusy}
                 onCancel={() => setConfirmReset(false)}
@@ -106,9 +124,34 @@ export function AppNavigator() {
             <TrailScreen
               progress={store.progress}
               onPlay={play}
+              onEconomy={(name) => setScreen({ name })}
               onSettings={() => setScreen({ name: 'settings' })}
               onDev={DEV_TOOLS ? () => setScreen({ name: 'dev' }) : undefined}
             />
+          )}
+          {(screen.name === 'shop' || screen.name === 'inventory') && (
+            <ShopScreen
+              key={screen.name}
+              progress={store.progress}
+              busy={store.busy}
+              inventory={screen.name === 'inventory'}
+              onExit={exit}
+              onGarden={() => setScreen({ name: 'garden' })}
+              onBuy={store.buy}
+              onEquip={store.equip}
+            />
+          )}
+          {screen.name === 'garden' && (
+            <GardenScreen
+              progress={store.progress}
+              busy={store.busy}
+              onExit={exit}
+              onShop={() => setScreen({ name: 'shop' })}
+              onPlace={store.place}
+            />
+          )}
+          {screen.name === 'achievements' && (
+            <AchievementsScreen progress={store.progress} onExit={exit} />
           )}
           {screen.name === 'settings' && (
             <SettingsScreen
@@ -127,6 +170,23 @@ export function AppNavigator() {
             <GameScreen
               key={screen.session.id}
               session={screen.session}
+              progress={store.progress}
+              onShop={() => setScreen({ name: 'shop' })}
+              onContinue={() => {
+                const next = STAGES.find(
+                  (s) =>
+                    getStageStatus(s.id, store.progress!.completedStageIds) ===
+                    'available',
+                );
+                if (next)
+                  play({
+                    mode: 'trail',
+                    game: next.game,
+                    variation: next.variation,
+                    stageId: next.id,
+                  });
+                else exit();
+              }}
               reducedMotion={reducedMotion}
               onExit={exit}
               onComplete={store.finishSession}

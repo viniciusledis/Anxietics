@@ -5,22 +5,24 @@ const { mkdirSync, writeFileSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const { join } = require('node:path');
 const output = join(tmpdir(), 'anxietics-preview');
-const games = [
-  'grass',
-  'window',
-  'sand',
-  'wash',
-  'paint',
-  'flowers',
-  'stones',
-  'balls',
-  'reveal',
-  'water',
-  'clay',
-  'lights',
-  'ink',
-  'fruit',
-];
+const games = process.env.PREVIEW_GAMES
+  ? process.env.PREVIEW_GAMES.split(',')
+  : [
+      'grass',
+      'window',
+      'sand',
+      'wash',
+      'paint',
+      'flowers',
+      'stones',
+      'balls',
+      'reveal',
+      'water',
+      'clay',
+      'lights',
+      'ink',
+      'fruit',
+    ];
 const lights = [
   [70, 365],
   [95, 270],
@@ -105,7 +107,8 @@ const pots = [
     await page.mouse.down();
     await page.mouse.move(...(await coords(pots[index])), { steps: 3 });
     await expect
-      .poll(percent, { timeout: 10000 })
+      // Teste funcional: tolera pausas do renderizador headless, sem alterar a regra de rega.
+      .poll(percent, { timeout: 30000 })
       .toBeGreaterThanOrEqual((index + 1) * 25);
     await page.mouse.up();
   }
@@ -329,9 +332,9 @@ const pots = [
     assert.deepEqual((await saved()).completedStageIds, ['jardim']);
     assert.equal(
       (await saved()).daily.tasks.filter((t) => t.completed).length,
-      0,
+      1,
     );
-    for (let i = 0; i < 3; i++) {
+    for (let i = 1; i < 3; i++) {
       await page.getByRole('tab', { name: 'Hoje', exact: true }).click();
       await page
         .getByRole('button', { name: 'Jogar atividade', exact: true })

@@ -42,7 +42,7 @@ test('dias de ausência e relógio para trás preservam conquistas e preferênci
 });
 test('dados inválidos são recusados sem gerar conquistas', () => {
   assert.throws(() => decodeProgress('{', day));
-  assert.throws(() => decodeProgress('{"version":3}', day));
+  assert.throws(() => decodeProgress('{"version":4}', day));
   const data = initialProgress(day);
   data.completedStageIds = ['jardim', 'jardim', 'fruit', 'inexistente'];
   assert.deepEqual(

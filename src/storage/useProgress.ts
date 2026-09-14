@@ -1,132 +1,118 @@
-import { Session } from '../minigames/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
-import {
-  completeSession,
-  initialProgress,
-  Progress,
-  renewDay,
-} from '../domain/progress';
+import { Session } from '../minigames/types';
+import { completeSession, renewDay, localDay } from '../domain/progress';
+import { buyItem, equipItem, placeDecoration } from '../economy/rules';
+import { SlotId } from '../economy/catalog';
 import { createProgressRepository } from './repository';
-
-const repository = createProgressRepository(AsyncStorage);
+import { createTransactions } from './transactions';
 export type SaveStatus = 'saved' | 'saving' | 'error';
-
 export function useProgress() {
-  const [progress, setProgress] = useState<Progress | null>(null);
-  const latest = useRef<Progress | null>(null);
+  const [transactions] = useState(() =>
+    createTransactions(createProgressRepository(AsyncStorage)),
+  );
+  const [snapshot, setSnapshot] = useState(transactions.getSnapshot);
   const [loadError, setLoadError] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
-  const resetting = useRef(false);
   const [resetError, setResetError] = useState(false);
   const [resetBusy, setResetBusy] = useState(false);
-  const revision = useRef(0);
   const mounted = useRef(true);
-
-  const persist = useCallback((value: Progress) => {
-    const version = ++revision.current;
-    setSaveStatus('saving');
-    repository
-      .save(value)
-      .then(() => {
-        if (mounted.current && version === revision.current)
-          setSaveStatus('saved');
-      })
-      .catch(() => {
-        if (mounted.current && version === revision.current)
-          setSaveStatus('error');
-      });
-  }, []);
-
   const load = useCallback(async () => {
     setLoadError(false);
     try {
-      const value = await repository.load();
-      if (!mounted.current) return;
-      latest.current = value;
-      setProgress(value);
-      persist(value);
+      await transactions.load();
     } catch {
       if (mounted.current) setLoadError(true);
     }
-  }, [persist]);
-
-  const update = useCallback(
-    (transform: (current: Progress) => Progress) => {
-      if (!latest.current || resetting.current) return;
-      const value = transform(latest.current);
-      if (value === latest.current) return;
-      latest.current = value;
-      setProgress(value);
-      persist(value);
-    },
-    [persist],
-  );
-
+  }, [transactions]);
   useEffect(() => {
     mounted.current = true;
+    const unsubscribe = transactions.subscribe(() => {
+      if (mounted.current) setSnapshot(transactions.getSnapshot());
+    });
     void load();
     return () => {
       mounted.current = false;
+      unsubscribe();
     };
-  }, [load]);
-
+  }, [transactions, load]);
   useEffect(() => {
-    const checkDay = () => update((current) => renewDay(current));
-    const subscription = AppState.addEventListener('change', (state) => {
+    const checkDay = () => {
+      const current = transactions.getSnapshot().progress;
+      if (!current || current.daily.date === localDay()) return;
+      void transactions.run(
+        (p) => ({ progress: renewDay(p), ok: true, message: '' }),
+        'day',
+      );
+    };
+    const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') checkDay();
     });
-    // Sem serviço em background: só atualiza o pequeno resumo enquanto o app está aberto.
-    const interval = setInterval(checkDay, 30_000);
+    const timer = setInterval(checkDay, 30_000);
     return () => {
-      subscription.remove();
-      clearInterval(interval);
+      sub.remove();
+      clearInterval(timer);
     };
-  }, [update]);
-
+  }, [transactions]);
+  const finishSession = useCallback(
+    (session: Session) => {
+      return transactions.run(
+        (p) => ({
+          progress: completeSession(p, session, new Date()),
+          ok: true,
+          message: 'Conclusão salva.',
+        }),
+        `session:${session.id}`,
+      );
+    },
+    [transactions],
+  );
   return {
-    progress,
+    progress: snapshot.progress,
+    busy: snapshot.busy,
     loadError,
-    saveStatus,
     resetError,
     resetBusy,
-    reset: async () => {
-      if (resetting.current) return false;
-      resetting.current = true;
-      setResetBusy(true);
-      setResetError(false);
-      // Invalida respostas de gravações anteriores; a fila salva o estado vazio por último.
-      revision.current += 1;
-      try {
-        const clean = initialProgress();
-        await repository.save(clean);
-        latest.current = clean;
-        setProgress(clean);
-        setSaveStatus('saved');
-        return true;
-      } catch {
-        setResetError(true);
-        setSaveStatus('error');
-        return false;
-      } finally {
-        resetting.current = false;
-        setResetBusy(false);
-      }
-    },
+    saveStatus: (snapshot.busy
+      ? 'saving'
+      : snapshot.error
+        ? 'error'
+        : 'saved') as SaveStatus,
     reload: load,
     retrySave: () => {
-      if (latest.current && !resetting.current) persist(latest.current);
+      void transactions.retry();
     },
-    finishSession: useCallback(
-      (session: Session) =>
-        update((current) => completeSession(current, session)),
-      [update],
-    ),
-    setReducedMotion: (enabled: boolean) =>
-      update((current) => ({
-        ...current,
-        preferences: { ...current.preferences, reducedMotion: enabled },
-      })),
+    finishSession,
+    buy: (id: string) => transactions.run((p) => buyItem(p, id), `buy:${id}`),
+    equip: (slot: 'grassTool' | 'grassAppearance', id: string | null) =>
+      transactions.run((p) => equipItem(p, slot, id), `equip:${slot}:${id}`),
+    place: (slot: SlotId, id: string | null) =>
+      transactions.run(
+        (p) => placeDecoration(p, slot, id),
+        `place:${slot}:${id}`,
+      ),
+    setReducedMotion: (enabled: boolean) => {
+      void transactions.run(
+        (p) => ({
+          progress: {
+            ...p,
+            preferences: { ...p.preferences, reducedMotion: enabled },
+          },
+          ok: true,
+          message: '',
+        }),
+        'preferences',
+      );
+    },
+    reset: async () => {
+      setResetBusy(true);
+      setResetError(false);
+      const result = await transactions.reset();
+      if (mounted.current) {
+        setResetBusy(false);
+        setResetError(!result.ok);
+      }
+      return result.ok;
+    },
   };
 }

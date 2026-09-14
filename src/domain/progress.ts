@@ -1,212 +1,210 @@
-import { GAME_IDS, GameId, Session } from '../minigames/types';
+import { GameId, Session } from '../minigames/types';
+import { GAME_INFO } from '../minigames/definitions';
+import { STAGES, getStageStatus, unlockedGames } from '../trail/stages';
+import { ECONOMY, levelFor } from '../economy/config';
 import {
-  getStageStatus,
-  LEGACY_STAGE_IDS,
-  STAGES,
-  unlockedGames,
-} from '../trail/stages';
-
-export type DailyTask = {
-  id: string;
-  game: GameId;
-  variation: number;
-  completed: boolean;
+  ACHIEVEMENTS,
+  achievementProgress,
+  award,
+  copyEconomy,
+  createEconomy,
+  grantAchievements,
+} from '../economy/rules';
+import { Economy, RewardReceipt } from '../economy/types';
+import { decodeEconomy } from '../economy/decode';
+import {
+  decodeLegacyProgress,
+  initialLegacyProgress,
+  LegacyProgress,
+  makeDaily,
+  localDay,
+} from './legacy';
+export { makeDaily, localDay, DAILY_TARGET } from './legacy';
+export type { DailyTask } from './legacy';
+export type Progress = Omit<LegacyProgress, 'version'> & {
+  version: 3;
+  economy: Economy;
 };
-export type Progress = {
-  version: 2;
-  completedStageIds: string[];
-  daily: { date: string; tasks: DailyTask[] };
-  preferences: { reducedMotion: boolean };
-  recentSessionIds: string[];
-};
-export const DAILY_TARGET = 3;
-export function localDay(date = new Date()): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
-export function makeDaily(
-  date: string,
-  completed: readonly string[],
-): Progress['daily'] {
-  const available = unlockedGames(completed);
-  const seed = [...date].reduce((sum, char) => sum + char.charCodeAt(0), 0);
-  const tasks = Array.from({ length: DAILY_TARGET }, (_, index) => ({
-    id: `${date}:${index}`,
-    game: available[(seed + index) % available.length]!,
-    variation: (seed + index) % 3,
-    completed: false,
-  }));
-  return { date, tasks };
-}
 export function initialProgress(now = new Date()): Progress {
   return {
-    version: 2,
-    completedStageIds: [],
-    daily: makeDaily(localDay(now), []),
-    preferences: { reducedMotion: false },
-    recentSessionIds: [],
+    ...initialLegacyProgress(now),
+    version: 3,
+    economy: createEconomy(),
   };
 }
-export function renewDay(progress: Progress, now = new Date()): Progress {
+export function renewDay(p: Progress, now = new Date()): Progress {
   const date = localDay(now);
-  return progress.daily.date === date
-    ? progress
-    : { ...progress, daily: makeDaily(date, progress.completedStageIds) };
+  return p.daily.date === date
+    ? p
+    : { ...p, daily: makeDaily(date, p.completedStageIds) };
 }
-
-// Uma partida pertence a exatamente um contexto. Modo livre nunca concede conquista.
 export function completeSession(
-  progress: Progress,
+  p: Progress,
   session: Session,
   now = new Date(),
 ): Progress {
-  const current = renewDay(progress, now);
-  if (
-    session.mode === 'dev' ||
-    session.sandbox ||
-    current.recentSessionIds.includes(session.id)
-  )
-    return current;
+  // Laboratório e livre não alteram a economia nem os marcos remunerados.
+  if (!['trail', 'daily'].includes(session.mode) || session.sandbox) return p;
+  const current = renewDay(p, now);
+  if (current.recentSessionIds.includes(session.id)) return current;
   if (!unlockedGames(current.completedStageIds).includes(session.game))
     return current;
-  let completedStageIds = current.completedStageIds;
-  let daily = current.daily;
-  if (session.mode === 'trail') {
-    const stage = STAGES.find((item) => item.id === session.stageId);
-    if (
-      !stage ||
-      stage.game !== session.game ||
-      stage.variation !== session.variation ||
-      getStageStatus(stage.id, completedStageIds) === 'locked'
+  if (
+    !Number.isInteger(session.variation) ||
+    session.variation < 0 ||
+    session.variation >= GAME_INFO[session.game].variations.length
+  )
+    return current;
+  const stage = STAGES.find((s) => s.game === session.game);
+  if (!stage) return current;
+  if (session.mode === 'trail' && session.stageId !== stage.id) return current;
+  const sameDay = (session.day ?? localDay(now)) === current.daily.date;
+  if (
+    session.mode === 'daily' &&
+    sameDay &&
+    !current.daily.tasks.some(
+      (t) =>
+        t.id === session.taskId &&
+        t.game === session.game &&
+        t.variation === session.variation,
     )
-      return current;
-    if (!completedStageIds.includes(stage.id))
-      completedStageIds = [...completedStageIds, stage.id];
-  } else if (session.mode === 'daily') {
-    // Não marca uma tarefa nova com o callback de uma rodada do dia anterior.
-    if (session.day !== daily.date) return current;
-    const task = daily.tasks.find(
-      (item) =>
-        item.id === session.taskId &&
-        item.game === session.game &&
-        item.variation === session.variation,
-    );
-    if (!task) return current;
-    daily = {
-      ...daily,
-      tasks: daily.tasks.map((item) =>
-        item.id === task.id ? { ...item, completed: true } : item,
-      ),
-    };
-  }
-  return {
+  )
+    return current;
+  const economy = copyEconomy(current.economy);
+  const next: Progress = {
     ...current,
-    completedStageIds,
-    daily,
+    completedStageIds: [...current.completedStageIds],
+    economy,
+    daily: {
+      ...current.daily,
+      tasks: current.daily.tasks.map((t) => ({ ...t })),
+    },
     recentSessionIds: [...current.recentSessionIds.slice(-63), session.id],
   };
+  const receipt: RewardReceipt = {
+    sessionId: session.id,
+    completed: [],
+    lines: [],
+    achievements: [],
+    levelBefore: levelFor(economy.xp),
+    levelAfter: levelFor(economy.xp),
+  };
+  // Qualquer variação guiada do jogo pode concluir sua etapa disponível.
+  if (getStageStatus(stage.id, next.completedStageIds) === 'available') {
+    next.completedStageIds.push(stage.id);
+    receipt.completed.push(`Etapa: ${stage.title}`);
+    award(
+      economy,
+      {
+        eventId: `stage:${stage.id}`,
+        label: 'Nova etapa da trilha',
+        ...ECONOMY.stage,
+      },
+      receipt.lines,
+    );
+  }
+  // Uma partida marca no máximo uma tarefa: mesmo jogo E mesma variação, no mesmo dia.
+  const task = sameDay
+    ? next.daily.tasks.find(
+        (t) =>
+          !t.completed &&
+          t.game === session.game &&
+          t.variation === session.variation &&
+          (session.mode !== 'daily' || t.id === session.taskId),
+      )
+    : undefined;
+  if (task) {
+    task.completed = true;
+    receipt.completed.push('Atividade diária');
+    award(
+      economy,
+      {
+        eventId: `daily:${task.id}`,
+        label: 'Atividade diária',
+        ...ECONOMY.daily,
+      },
+      receipt.lines,
+    );
+  }
+  if (sameDay && next.daily.tasks.every((t) => t.completed)) {
+    award(
+      economy,
+      {
+        eventId: `daily-bonus:${next.daily.date}`,
+        label: 'Três atividades do dia',
+        seeds: ECONOMY.dailyBonus,
+        xp: 0,
+      },
+      receipt.lines,
+    );
+  }
+  if (!economy.completedGameIds.includes(session.game))
+    economy.completedGameIds.push(session.game);
+  receipt.achievements = grantAchievements(next, receipt.lines);
+  receipt.levelAfter = levelFor(economy.xp);
+  if (!receipt.completed.length)
+    receipt.completed.push('Rodada guiada concluída');
+  economy.receipts = [...economy.receipts.slice(-63), receipt];
+  return next;
 }
-
-// Conveniência para testes de trilha; na interface cada tentativa recebe seu próprio id.
 export function completeStage(
-  progress: Progress,
+  p: Progress,
   id: string,
   now = new Date(),
 ): Progress {
-  const stage = STAGES.find((item) => item.id === id);
-  if (!stage) return progress;
-  return completeSession(
-    progress,
-    {
-      id: `trail:${id}`,
-      mode: 'trail',
-      game: stage.game,
-      variation: stage.variation,
-      stageId: id,
-    },
-    now,
-  );
+  const stage = STAGES.find((s) => s.id === id);
+  return stage
+    ? completeSession(
+        p,
+        {
+          id: `trail:${id}`,
+          game: stage.game,
+          variation: stage.variation,
+          stageId: id,
+          mode: 'trail',
+          day: localDay(now),
+        },
+        now,
+      )
+    : p;
 }
-
 export function decodeProgress(raw: string, now = new Date()): Progress {
   const value = JSON.parse(raw);
-  if (
-    !value ||
-    ![1, 2].includes(value.version) ||
-    !Array.isArray(value.completedStageIds) ||
-    !value.daily ||
-    typeof value.daily.date !== 'string' ||
-    !/^\d{4}-\d{2}-\d{2}$/.test(value.daily.date) ||
-    typeof value.preferences?.reducedMotion !== 'boolean'
-  )
-    throw new Error('Formato de progresso não reconhecido.');
-  const completed: string[] = [];
-  for (const stage of STAGES) {
-    if (!value.completedStageIds.includes(stage.id)) break;
-    completed.push(stage.id);
-  }
-  // Clareira e bosque continuam conquistas históricas; não pulam os novos jogos.
-  if (completed.includes('jardim'))
-    for (const id of LEGACY_STAGE_IDS)
-      if (value.completedStageIds.includes(id)) completed.push(id);
-  let daily: Progress['daily'];
-  if (value.version === 1) {
-    if (!Array.isArray(value.daily.completedStageIds))
-      throw new Error('Registro diário inválido.');
-    daily = {
-      date: value.daily.date,
-      tasks: ['jardim', ...LEGACY_STAGE_IDS].map((id, index) => ({
-        id: `${value.daily.date}:${index}`,
-        game: 'grass',
-        variation: index,
-        completed:
-          completed.includes(id) && value.daily.completedStageIds.includes(id),
-      })),
-    };
-  } else {
-    if (
-      !Array.isArray(value.daily.tasks) ||
-      value.daily.tasks.length !== DAILY_TARGET ||
-      !Array.isArray(value.recentSessionIds)
-    )
-      throw new Error('Registro diário inválido.');
-    const allowed = unlockedGames(completed);
-    const tasks: DailyTask[] = value.daily.tasks.map(
-      (task: DailyTask, index: number) => {
-        if (
-          !task ||
-          task.id !== `${value.daily.date}:${index}` ||
-          !GAME_IDS.includes(task.game) ||
-          !allowed.includes(task.game) ||
-          !Number.isInteger(task.variation) ||
-          task.variation < 0 ||
-          task.variation > 2 ||
-          typeof task.completed !== 'boolean'
-        )
-          throw new Error('Tarefa inválida.');
-        return {
-          id: task.id,
-          game: task.game,
-          variation: task.variation,
-          completed: task.completed,
-        };
-      },
+  if (value?.version === 3) {
+    // Reutiliza a validação da trilha e do trio; economia é validada separadamente.
+    const base = decodeLegacyProgress(
+      JSON.stringify({ ...value, version: 2 }),
+      now,
     );
-    daily = { date: value.daily.date, tasks };
+    return { ...base, version: 3, economy: decodeEconomy(value.economy) };
   }
-  return renewDay(
-    {
-      version: 2,
-      completedStageIds: completed,
-      daily,
-      preferences: { reducedMotion: value.preferences.reducedMotion },
-      recentSessionIds:
-        value.version === 2
-          ? value.recentSessionIds
-              .filter((id: unknown) => typeof id === 'string')
-              .slice(-64)
-          : [],
-    },
-    now,
+  // Migra antes de renovar o dia, para registrar também tarefas antigas já concluídas.
+  const date =
+    typeof value?.daily?.date === 'string'
+      ? new Date(`${value.daily.date}T12:00:00`)
+      : now;
+  const base = decodeLegacyProgress(raw, date);
+  const economy = createEconomy();
+  const next: Progress = { ...base, version: 3, economy };
+  economy.completedGameIds = [
+    ...new Set(
+      STAGES.filter((s) => base.completedStageIds.includes(s.id)).map(
+        (s) => s.game,
+      ),
+    ),
+  ] as GameId[];
+  economy.processedEventIds.push(
+    ...base.completedStageIds.map((id) => `stage:${id}`),
   );
+  economy.processedEventIds.push(
+    ...base.daily.tasks.filter((t) => t.completed).map((t) => `daily:${t.id}`),
+  );
+  if (base.daily.tasks.every((t) => t.completed))
+    economy.processedEventIds.push(`daily-bonus:${base.daily.date}`);
+  for (const a of ACHIEVEMENTS)
+    if (achievementProgress(next, a.id) >= a.target) {
+      economy.achievementIds.push(a.id);
+      economy.processedEventIds.push(`achievement:${a.id}`);
+    }
+  return renewDay(next, now);
 }
