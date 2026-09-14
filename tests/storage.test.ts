@@ -1,14 +1,24 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { completeStage, initialProgress } from '../src/domain/progress';
-import { createProgressRepository, LocalStorage } from '../src/storage/repository';
+import {
+  createProgressRepository,
+  LocalStorage,
+} from '../src/storage/repository';
 import { getStageStatus } from '../src/trail/stages';
 
 const day = new Date(2026, 8, 14, 12);
 
 function memoryStorage(): LocalStorage {
   const data = new Map<string, string>();
-  return { async getItem(key) { return data.get(key) ?? null; }, async setItem(key, value) { data.set(key, value); } };
+  return {
+    async getItem(key) {
+      return data.get(key) ?? null;
+    },
+    async setItem(key, value) {
+      data.set(key, value);
+    },
+  };
 }
 
 test('repositório novo recupera desbloqueio e preferências após salvar', async () => {
@@ -21,7 +31,10 @@ test('repositório novo recupera desbloqueio e preferências após salvar', asyn
   const nextSession = createProgressRepository(disk);
   const restored = await nextSession.load(day);
   assert.deepEqual(restored, progress);
-  assert.equal(getStageStatus('clareira', restored.completedStageIds), 'available');
+  assert.equal(
+    getStageStatus('window', restored.completedStageIds),
+    'available',
+  );
 });
 
 test('fila preserva ordem quando a primeira escrita é lenta', async () => {
@@ -29,18 +42,25 @@ test('fila preserva ordem quando a primeira escrita é lenta', async () => {
   const history: string[] = [];
   let release!: () => void;
   let started!: () => void;
-  const began = new Promise<void>(resolve => { started = resolve; });
-  const held = new Promise<void>(resolve => { release = resolve; });
+  const began = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
   const repository = createProgressRepository({
     getItem: disk.getItem,
     async setItem(key, value) {
       history.push(value);
-      if (history.length === 1) { started(); await held; }
+      if (history.length === 1) {
+        started();
+        await held;
+      }
       await disk.setItem(key, value);
     },
   });
   const first = completeStage(initialProgress(day), 'jardim', day);
-  const second = completeStage(first, 'clareira', day);
+  const second = completeStage(first, 'window', day);
   const writingFirst = repository.save(first);
   const writingSecond = repository.save(second);
   await began;
@@ -57,7 +77,10 @@ test('erro de escrita é informado e não impede uma nova tentativa', async () =
   const repository = createProgressRepository({
     getItem: disk.getItem,
     async setItem(key, value) {
-      if (fail) { fail = false; throw new Error('sem espaço'); }
+      if (fail) {
+        fail = false;
+        throw new Error('sem espaço');
+      }
       return disk.setItem(key, value);
     },
   });
@@ -69,9 +92,33 @@ test('erro de escrita é informado e não impede uma nova tentativa', async () =
 
 test('falha de leitura e JSON corrompido não sobrescrevem os dados', async () => {
   let writes = 0;
-  for (const brokenRead of [async () => '{', async () => { throw new Error('indisponível'); }]) {
-    const repository = createProgressRepository({ getItem: brokenRead, async setItem() { writes++; } });
+  for (const brokenRead of [
+    async () => '{',
+    async () => {
+      throw new Error('indisponível');
+    },
+  ]) {
+    const repository = createProgressRepository({
+      getItem: brokenRead,
+      async setItem() {
+        writes++;
+      },
+    });
     await assert.rejects(repository.load(day));
   }
   assert.equal(writes, 0);
+});
+
+test('apagar os dados após uma gravação pendente restaura o estado inicial', async () => {
+  const disk = memoryStorage();
+  const repo = createProgressRepository(disk);
+  const old = completeStage(initialProgress(day), 'jardim', day);
+  old.preferences.reducedMotion = true;
+  const write = repo.save(old);
+  const clear = repo.save(initialProgress(day));
+  await Promise.all([write, clear]);
+  assert.deepEqual(
+    await createProgressRepository(disk).load(day),
+    initialProgress(day),
+  );
 });

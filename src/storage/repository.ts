@@ -16,7 +16,9 @@ export function createProgressRepository(storage: LocalStorage) {
     save(progress: Progress): Promise<void> {
       const snapshot = JSON.stringify(progress);
       // Uma escrita antiga nunca pode terminar por cima de uma mais nova.
-      const writing = pending.catch(() => undefined).then(() => storage.setItem(STORAGE_KEY, snapshot));
+      const writing = pending
+        .catch(() => undefined)
+        .then(() => storage.setItem(STORAGE_KEY, snapshot));
       pending = writing;
       return writing;
     },

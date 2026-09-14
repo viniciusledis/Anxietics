@@ -6,9 +6,19 @@ export function useReducedMotion(preference: boolean) {
   const [system, setSystem] = useState(true);
   useEffect(() => {
     let active = true;
-    AccessibilityInfo.isReduceMotionEnabled().then(value => { if (active) setSystem(value); }).catch(() => {});
-    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setSystem);
-    return () => { active = false; subscription.remove(); };
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((value) => {
+        if (active) setSystem(value);
+      })
+      .catch(() => {});
+    const subscription = AccessibilityInfo.addEventListener(
+      'reduceMotionChanged',
+      setSystem,
+    );
+    return () => {
+      active = false;
+      subscription.remove();
+    };
   }, []);
   return preference || system;
 }

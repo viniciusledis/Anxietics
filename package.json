@@ -1,6 +1,6 @@
 {
   "name": "anxietics",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "main": "index.ts",
   "scripts": {
@@ -13,7 +13,9 @@
     "doctor": "npx expo-doctor",
     "export:mobile": "expo export --platform android --output-dir dist/android && expo export --platform ios --output-dir dist/ios",
     "web": "node scripts/prepare-web.cjs && expo start --web",
-    "test:preview": "node scripts/verify-preview.cjs"
+    "test:preview": "node scripts/verify-preview.cjs && node scripts/verify-lifecycle.cjs",
+    "dev:games": "node scripts/start-games.cjs",
+    "web:games": "node scripts/start-games.cjs --web"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",

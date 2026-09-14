@@ -1,3 +1,6 @@
+import { GAME_IDS, GameId } from '../minigames/types';
+import { GAME_INFO } from '../minigames/definitions';
+
 export type GrassPalette = {
   tall: string;
   blade: string;
@@ -6,40 +9,66 @@ export type GrassPalette = {
   stripe: string;
 };
 
+export const GRASS_VARIATIONS = [
+  {
+    variation: 'meadow' as const,
+    palette: {
+      tall: '#497349',
+      blade: '#325638',
+      highlight: '#74955B',
+      cut: '#BBD18A',
+      stripe: '#ADC57B',
+    },
+  },
+  {
+    variation: 'bands' as const,
+    palette: {
+      tall: '#7A7E42',
+      blade: '#555F35',
+      highlight: '#A3A45F',
+      cut: '#DFD39A',
+      stripe: '#CFC48A',
+    },
+  },
+  {
+    variation: 'patchwork' as const,
+    palette: {
+      tall: '#436D60',
+      blade: '#2D5148',
+      highlight: '#709783',
+      cut: '#B4D3B4',
+      stripe: '#A0C2A5',
+    },
+  },
+];
+export type GrassConfig = (typeof GRASS_VARIATIONS)[number];
 export type Stage = {
   id: string;
   title: string;
-  subtitle: string;
-  game: 'grass';
-  variation: 'meadow' | 'bands' | 'patchwork';
-  palette: GrassPalette;
+  game: GameId;
+  variation: number;
 };
-
-// Conteúdo da trilha, independente do motor do minijogo.
-export const STAGES: readonly Stage[] = [
-  {
-    id: 'jardim', title: 'Jardim de início', subtitle: 'Um caminho para descobrir.',
-    game: 'grass', variation: 'meadow',
-    palette: { tall: '#497349', blade: '#325638', highlight: '#74955B', cut: '#BBD18A', stripe: '#ADC57B' },
-  },
-  {
-    id: 'clareira', title: 'Clareira dourada', subtitle: 'Outras cores, o mesmo gesto.',
-    game: 'grass', variation: 'bands',
-    palette: { tall: '#7A7E42', blade: '#555F35', highlight: '#A3A45F', cut: '#DFD39A', stripe: '#CFC48A' },
-  },
-  {
-    id: 'bosque', title: 'Cantinho do bosque', subtitle: 'Um novo desenho no campo.',
-    game: 'grass', variation: 'patchwork',
-    palette: { tall: '#436D60', blade: '#2D5148', highlight: '#709783', cut: '#B4D3B4', stripe: '#A0C2A5' },
-  },
-];
-
+export const STAGES: readonly Stage[] = GAME_IDS.map((game, index) => ({
+  id: index === 0 ? 'jardim' : game,
+  title: GAME_INFO[game].name,
+  game,
+  variation: 0,
+}));
+export const LEGACY_STAGE_IDS = ['clareira', 'bosque'];
 export type StageStatus = 'locked' | 'available' | 'completed';
-
-export function getStageStatus(id: string, completed: readonly string[]): StageStatus {
-  const index = STAGES.findIndex(stage => stage.id === id);
+export function getStageStatus(
+  id: string,
+  completed: readonly string[],
+): StageStatus {
+  const index = STAGES.findIndex((stage) => stage.id === id);
   if (index < 0) return 'locked';
   if (completed.includes(id)) return 'completed';
-  const previous = STAGES[index - 1];
-  return index === 0 || (previous && completed.includes(previous.id)) ? 'available' : 'locked';
+  return STAGES.slice(0, index).every((stage) => completed.includes(stage.id))
+    ? 'available'
+    : 'locked';
+}
+export function unlockedGames(completed: readonly string[]): GameId[] {
+  return STAGES.filter(
+    (stage) => getStageStatus(stage.id, completed) !== 'locked',
+  ).map((stage) => stage.game);
 }

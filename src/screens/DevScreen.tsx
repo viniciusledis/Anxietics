@@ -1,0 +1,50 @@
+import { ScrollView, Text, View } from 'react-native';
+import { GAME_CATALOG } from '../minigames/catalog';
+import { Session } from '../minigames/types';
+import { Button } from '../ui/Button';
+import { common } from '../ui/theme';
+export function DevScreen({
+  onPlay,
+  onExit,
+}: {
+  onPlay: (session: Omit<Session, 'id'>) => void;
+  onExit: () => void;
+}) {
+  return (
+    <ScrollView contentContainerStyle={{ padding: 24, gap: 16 }}>
+      <Button secondary label="Voltar à trilha" onPress={onExit} />
+      <Text style={common.title}>Laboratório</Text>
+      <Text style={common.body}>
+        Somente desenvolvimento. Nenhuma partida daqui altera conquistas ou
+        tarefas.
+      </Text>
+      {GAME_CATALOG.map((game) => (
+        <View key={game.id} style={{ gap: 8, marginBottom: 16 }}>
+          <Text style={common.body}>{game.name}</Text>
+          {game.variations.map((name, variation) => (
+            <Button
+              key={name}
+              disabled={!game.component}
+              label={`Testar ${game.id} · ${name}`}
+              onPress={() => onPlay({ mode: 'dev', game: game.id, variation })}
+            />
+          ))}
+          {game.openEnded && (
+            <Button
+              secondary
+              label={`Livre · ${game.id}`}
+              onPress={() =>
+                onPlay({
+                  mode: 'free',
+                  game: game.id,
+                  variation: 0,
+                  sandbox: true,
+                })
+              }
+            />
+          )}
+        </View>
+      ))}
+    </ScrollView>
+  );
+}
