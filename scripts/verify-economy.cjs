@@ -3,6 +3,7 @@ const { chromium, expect } = require('@playwright/test');
 const assert = require('node:assert/strict');
 const { mkdirSync, writeFileSync } = require('node:fs');
 const { join } = require('node:path');
+const { grass3DPoint } = require('./grass3d-coordinates.cjs');
 const { tmpdir } = require('node:os');
 (async () => {
   const output = join(tmpdir(), 'anxietics-economy');
@@ -39,10 +40,13 @@ const { tmpdir } = require('node:os');
   async function stroke(a, b) {
     const box = await page.locator('canvas').boundingBox();
     assert.ok(box);
-    const point = (p) => [
-      box.x + (p[0] * box.width) / 320,
-      box.y + (p[1] * box.height) / 448,
-    ];
+    const isGrass3D = await page.getByRole('img', { name: /Jardim 3D/ }).count();
+    const point = (p) => isGrass3D
+      ? grass3DPoint(box, p)
+      : [
+          box.x + (p[0] * box.width) / 320,
+          box.y + (p[1] * box.height) / 448,
+        ];
     await page.mouse.move(...point(a));
     await page.mouse.down();
     await page.mouse.move(...point(b), { steps: 2 });

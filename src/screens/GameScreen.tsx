@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { fitField } from '../minigames/grass/coverage';
 import { GAME_COMPONENTS } from '../minigames/catalog';
+import { GrassGame3D } from '../minigames/grass/GrassGame3D';
 import { GAME_INFO } from '../minigames/definitions';
 import { Session } from '../minigames/types';
 import { localDay, Progress } from '../domain/progress';
@@ -63,6 +64,8 @@ export function GameScreen({
   const opacity = useRef(new Animated.Value(0)).current;
   const info = GAME_INFO[session.game];
   const Component = GAME_COMPONENTS[session.game];
+  const grass3D = session.game === 'grass' && session.grassVisual !== '2d';
+  const FieldComponent = grass3D ? GrassGame3D : Component;
   const openEnded = session.mode === 'free' && info.openEnded;
   const enabled = foreground && !paused && !confirmRestart && !complete;
   useEffect(() => {
@@ -199,7 +202,11 @@ export function GameScreen({
           <Text style={styles.instruction}>
             {openEnded ? info.freeInstruction : info.instruction}
           </Text>
-          {!openEnded && <Text style={styles.percent}>{percent}%</Text>}
+          {!openEnded && (
+            <Text style={[styles.percent, grass3D && styles.grassPercent]}>
+              {percent}%
+            </Text>
+          )}
         </View>
         {!openEnded && (
           <View
@@ -209,10 +216,25 @@ export function GameScreen({
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={percent}
-            style={styles.track}
+            style={[styles.track, grass3D && styles.grassTrack]}
           >
-            <View style={[styles.fill, { width: `${percent}%` }]} />
+            <View
+              style={[
+                styles.fill,
+                grass3D && styles.grassFill,
+                { width: `${percent}%` },
+              ]}
+            />
           </View>
+        )}
+        {grass3D && (
+          <Text style={styles.grassCaption}>
+            {percent >= 75
+              ? 'Quase pronto — o jardim já respira.'
+              : percent >= 25
+                ? 'O caminho aparado está aparecendo.'
+                : 'Deslize sem pressa. Cada passada conta.'}
+          </Text>
         )}
         {!!info.colors && (
           <View
@@ -251,9 +273,9 @@ export function GameScreen({
         )}
       </View>
       <View style={styles.fieldArea} onLayout={layout}>
-        {field.scale > 0 && Component && (
-          <View style={styles.frame}>
-            <Component
+        {(grass3D || field.scale > 0) && FieldComponent && (
+          <View style={grass3D ? styles.frame3D : styles.frame}>
+            <FieldComponent
               key={attempt}
               game={session.game}
               variation={session.variation}
@@ -466,6 +488,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
+  grassPercent: {
+    color: colors.ink,
+    fontSize: 17,
+    fontWeight: '700',
+  },
   track: {
     height: 5,
     backgroundColor: colors.line,
@@ -473,6 +500,15 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   fill: { height: '100%', backgroundColor: colors.green, borderRadius: 3 },
+  grassTrack: { height: 9, borderRadius: 6, backgroundColor: colors.lightGreen },
+  grassFill: { backgroundColor: '#6E9D5C', borderRadius: 6 },
+  grassCaption: {
+    color: colors.green,
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 7,
+    minHeight: 16,
+  },
   fieldArea: {
     flex: 1,
     marginHorizontal: 12,
@@ -481,6 +517,13 @@ const styles = StyleSheet.create({
     minHeight: 90,
   },
   frame: { padding: 6, backgroundColor: '#E0E3D0', borderRadius: 7 },
+  frame3D: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: colors.background,
+  },
   bottom: { paddingHorizontal: 24, paddingBottom: 10, paddingTop: 8, gap: 10 },
   note: {
     color: colors.muted,

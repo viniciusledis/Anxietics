@@ -10,6 +10,7 @@ import { GameScreen } from '../screens/GameScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { TrailScreen } from '../screens/TrailScreen';
 import { DevScreen } from '../screens/DevScreen';
+import { ThreeTestScreen } from '../screens/ThreeTestScreen';
 import { Session } from '../minigames/types';
 import { useProgress } from '../storage/useProgress';
 import { unlockedGames } from '../trail/stages';
@@ -27,6 +28,7 @@ type Screen =
         | 'trail'
         | 'settings'
         | 'dev'
+        | 'threeTest'
         | 'shop'
         | 'inventory'
         | 'garden'
@@ -164,7 +166,14 @@ export function AppNavigator() {
             />
           )}
           {screen.name === 'dev' && DEV_TOOLS && (
-            <DevScreen onPlay={play} onExit={exit} />
+            <DevScreen
+              onPlay={play}
+              onThreeTest={() => setScreen({ name: 'threeTest' })}
+              onExit={exit}
+            />
+          )}
+          {screen.name === 'threeTest' && DEV_TOOLS && (
+            <ThreeTestScreen onExit={() => setScreen({ name: 'dev' })} />
           )}
           {screen.name === 'game' && (
             <GameScreen
@@ -197,6 +206,7 @@ export function AppNavigator() {
                   mode: 'free',
                   sandbox:
                     screen.session.mode === 'dev' || screen.session.sandbox,
+                  grassVisual: screen.session.grassVisual,
                 })
               }
             />

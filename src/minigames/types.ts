@@ -42,4 +42,5 @@ export type Session = {
   taskId?: string;
   day?: string;
   sandbox?: boolean;
+  grassVisual?: '2d' | '3d';
 };

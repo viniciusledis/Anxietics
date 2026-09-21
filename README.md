@@ -139,7 +139,8 @@ O desenho, posições e percentual **parciais da rodada não são persistidos**.
 ```text
 App.tsx                       Provedores de gestos e áreas seguras
 src/navigation/               Escolha da tela e criação de partidas
-src/screens/                  Trilha, jogo, ajustes, laboratório, loja, inventário, conquistas e jardim
+src/screens/                  Trilha, jogo, ajustes, laboratório, teste 3D, loja, inventário, conquistas e jardim
+src/three/                    Prova de conceito 3D isolada com React Three Fiber
 src/trail/stages.ts            Ordem e estado das 14 etapas
 src/minigames/types.ts         Contratos simples: jogo, modo e partida
 src/minigames/definitions.ts   Nomes, instruções e variações
@@ -163,7 +164,7 @@ Para estudar a economia, leia `economy/config.ts`, `catalog.ts`, `rules.ts` e de
 
 Comece por `types.ts`, `definitions.ts` e `stages.ts`; depois leia `grass/coverage.ts` e um `rules.ts`. A tela `GameScreen` controla a rodada; os jogos só informam percentual e conclusão. `completeSession` decide o efeito da conclusão no progresso persistente. Navegação por estado foi preservada: poucas telas não justificaram trocar a arquitetura.
 
-**Por que Skia?** Componentes nativos servem bem para botões e textos. Para desenhar milhares de pedacinhos de superfície a cada gesto, um canvas é mais apropriado que milhares de Views. Skia reúne formas em caminhos; Gesture Handler recebe o gesto e Reanimated compartilha dados com a camada visual. No Android/iOS, as funções marcadas com `'worklet'` podem rodar na thread de interface. Isso reduz o trabalho de React por movimento, mas não comprova fluidez sem medir no celular.
+**Por que Skia?** A versão 2D original da grama e os demais jogos usam Skia para desenhar muitos elementos sem criar milhares de Views. Gesture Handler recebe o gesto e Reanimated compartilha dados com a camada visual; no Android/iOS, funções marcadas com `'worklet'` podem rodar na thread de interface. O novo vertical slice da grama usa Three.js/Expo GL somente dentro da área jogável e mantém as regras e o HUD compartilhados. Nenhuma das duas abordagens comprova fluidez sem medir no celular.
 
 O campo tem 320 × 448 unidades lógicas e escala uniforme. A cobertura usa 80 × 112 células: cada célula conta uma vez. A distância ao **segmento inteiro** entre eventos cobre gestos rápidos; a máscara desenha as mesmas células contabilizadas. O vaso filtra as células elegíveis. Aos 95%, a máscara termina os resíduos; 100% é o acabamento automático, não uma exigência de precisão.
 
@@ -180,6 +181,8 @@ npm run web:games
 ```
 
 Abra **Laboratório de desenvolvimento** no fim da tela da trilha. Há botões para as três variações de cada jogo e para os três modos livres abertos. Essas partidas não modificam conquistas ou tarefas.
+
+O botão **Abrir teste 3D isolado** mantém a prova de conceito inicial com `three`, `@react-three/fiber/native` e `expo-gl`. O jogo **Cortar grama** agora usa o vertical slice 3D na trilha, Hoje e modo livre. No Laboratório, é possível abrir cada variação em **3D** ou **2D original** para comparar. Todos os outros jogos permanecem como estavam. Consulte [GRAMA_3D.md](docs/GRAMA_3D.md) para arquivos, decisões de performance e validação pendente em aparelhos físicos.
 
 O atalho só aparece quando `__DEV__` é verdadeiro **e** `EXPO_PUBLIC_DEV_TOOLS=1`. `npm start` normal não o habilita. Uma exportação de produção não o mostra mesmo com a variável. O script inicializador define a variável sem depender da sintaxe de ambiente do sistema operacional.
 
@@ -214,7 +217,7 @@ npm run test:economy
 
 O preparo web copia o CanvasKit instalado para `public/`, sem CDN. O teste usa Chrome headless em perfil temporário. Capturas e `resultado.json` ficam na pasta `anxietics-preview` do diretório temporário do sistema; o caminho exato é impresso no fim. O roteiro usa mouse: não equivale a toque nativo. `test:economy` executa o ciclo completo sem injetar saldo, testa falhas simuladas de gravação e salva capturas em `anxietics-economy` no diretório temporário. Depois executa uma inspeção de todos os itens com saldo de fixture de 1.000 sementes, identificada separadamente em `anxietics-catalog`. Esse segundo roteiro não representa a progressão normal. Os testes de regras também cobrem todas as cinco decorações. `npm run web` abre a experiência normal sem laboratório.
 
-Consulte [VALIDACAO.md](docs/VALIDACAO.md) para os resultados executados e dispositivos pendentes. [DECISOES.md](docs/DECISOES.md) registra fontes oficiais, limites, migração e os alertas transitivos de dependências ainda pendentes. Sons, vibração e gráficos complexos não foram adicionados.
+Consulte [VALIDACAO.md](docs/VALIDACAO.md) para os resultados anteriores e [GRAMA_3D.md](docs/GRAMA_3D.md) para a validação do vertical slice 3D. [DECISOES.md](docs/DECISOES.md) registra fontes oficiais, limites, migração e os alertas transitivos de dependências ainda pendentes. Sons e vibração não foram adicionados.
 
 ## O que observar no celular
 

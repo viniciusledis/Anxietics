@@ -5,9 +5,11 @@ import { Button } from '../ui/Button';
 import { common } from '../ui/theme';
 export function DevScreen({
   onPlay,
+  onThreeTest,
   onExit,
 }: {
   onPlay: (session: Omit<Session, 'id'>) => void;
+  onThreeTest: () => void;
   onExit: () => void;
 }) {
   return (
@@ -18,16 +20,28 @@ export function DevScreen({
         Somente desenvolvimento. Nenhuma partida daqui altera conquistas ou
         tarefas.
       </Text>
+      <View style={{ gap: 8, marginBottom: 16 }}>
+        <Text style={common.body}>Experimentos técnicos</Text>
+        <Button label="Abrir teste 3D isolado" onPress={onThreeTest} />
+      </View>
       {GAME_CATALOG.map((game) => (
         <View key={game.id} style={{ gap: 8, marginBottom: 16 }}>
           <Text style={common.body}>{game.name}</Text>
           {game.variations.map((name, variation) => (
-            <Button
-              key={name}
-              disabled={!game.component}
-              label={`Testar ${game.id} · ${name}`}
-              onPress={() => onPlay({ mode: 'dev', game: game.id, variation })}
-            />
+            <View key={name} style={{ gap: 7 }}>
+              <Button
+                disabled={!game.component}
+                label={`Testar ${game.id} · ${name}${game.id === 'grass' ? ' · 3D' : ''}`}
+                onPress={() => onPlay({ mode: 'dev', game: game.id, variation })}
+              />
+              {game.id === 'grass' && (
+                <Button
+                  secondary
+                  label={`Comparar ${game.id} · ${name} · 2D original`}
+                  onPress={() => onPlay({ mode: 'dev', game: game.id, variation, grassVisual: '2d' })}
+                />
+              )}
+            </View>
           ))}
           {game.openEnded && (
             <Button

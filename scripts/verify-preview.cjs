@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const { mkdirSync, writeFileSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const { join } = require('node:path');
+const { grass3DPoint } = require('./grass3d-coordinates.cjs');
 const output = join(tmpdir(), 'anxietics-preview');
 const games = process.env.PREVIEW_GAMES
   ? process.env.PREVIEW_GAMES.split(',')
@@ -65,6 +66,8 @@ const pots = [
   async function coords(point) {
     const b = await page.locator('canvas').boundingBox();
     assert.ok(b);
+    if (await page.getByRole('img', { name: /Jardim 3D/ }).count())
+      return grass3DPoint(b, point);
     return [
       b.x + (point[0] * b.width) / 320,
       b.y + (point[1] * b.height) / 448,
@@ -91,7 +94,11 @@ const pots = [
       .click();
     await page
       .getByRole('button', {
-        name: free ? `Livre · ${game}` : new RegExp(`^Testar ${game} ·`),
+        name: free
+          ? `Livre · ${game}`
+          : game === 'grass'
+            ? new RegExp(`^Comparar ${game} ·.*2D original$`)
+            : new RegExp(`^Testar ${game} ·`),
       })
       .nth(free ? 0 : variation)
       .click();
