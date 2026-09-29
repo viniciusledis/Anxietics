@@ -22,7 +22,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#F5F4EB"
+          "backgroundColor": "#FBF9F2"
         }
       ],
       [
@@ -32,7 +32,8 @@
             "enableSceneSupport": true
           }
         }
-      ]
+      ],
+      "expo-font"
     ]
   }
 }

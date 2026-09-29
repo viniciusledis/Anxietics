@@ -24,12 +24,12 @@ const games = process.env.PREVIEW_GAMES ? process.env.PREVIEW_GAMES.split(',') :
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  const percent = async () => Number(await page.getByRole('progressbar').getAttribute('aria-valuenow'));
+  const percent = async () => Number(await page.getByRole('progressbar', { includeHidden: true }).getAttribute('aria-valuenow'));
   let game;
   const captured = new Set();
   async function captureDuring() {
     if (!captures || captured.has(game)) return;
-    if (!(await page.getByRole('progressbar').count())) return; // Free modes deliberately have no HUD progress.
+    if (!(await page.getByRole('progressbar', { includeHidden: true }).count())) return; // Free modes deliberately have no HUD progress.
     const value = await percent();
     if (value >= 30 && value < 100) { captured.add(game); await page.screenshot({ path: join(captures, `${game}-durante.png`) }); }
   }
@@ -83,7 +83,7 @@ const games = process.env.PREVIEW_GAMES ? process.env.PREVIEW_GAMES.split(',') :
       await expect(page.getByTestId('completion-card')).toBeVisible({ timeout: 12000 });
       // Additional scene-only QA image. The normal, unmodified UI capture above is retained.
       if (captures) await page.screenshot({ path: join(captures, `${game}-scene.png`), style: '[data-testid="completion-card"] { visibility: hidden !important; }' });
-      await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100');
+      await expect(page.getByRole('progressbar', { includeHidden: true })).toHaveAttribute('aria-valuenow', '100');
       if (errors.length) throw new Error(`${game}: ${errors.join(' | ')}`);
       process.stdout.write(`${game} 100% OK\n`);
       await page.getByRole('button', { name: '‹  Voltar', exact: true }).click();
@@ -99,7 +99,7 @@ const games = process.env.PREVIEW_GAMES ? process.env.PREVIEW_GAMES.split(',') :
         await page.getByRole('button', { name: `Cor ${c}`, exact: true }).click();
         for (let i = 0; i < 3; i++) await tap([60 + i * 80, 100 + c * 60]);
       }
-      await expect(page.getByRole('progressbar')).toHaveCount(0);
+      await expect(page.getByRole('progressbar', { includeHidden: true })).toHaveCount(0);
       await expect(page.getByTestId('completion-card')).toHaveCount(0);
       await page.getByRole('button', { name: 'Encerrar por aqui', exact: true }).click();
       await expect(page.getByTestId('completion-card')).toBeVisible();

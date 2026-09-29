@@ -1,4 +1,5 @@
 import { View } from 'react-native';
+import { colors, radius } from '../ui/theme';
 import {
   Canvas,
   Circle,
@@ -170,23 +171,31 @@ export function ItemArt({ item }: { item: Item }) {
     </>
   );
 }
-export function ItemPreview({ item }: { item: Item }) {
+export function ItemPreview({
+  item,
+  size = 112,
+}: {
+  item: Item;
+  size?: number;
+}) {
   return (
     <View
       accessible
       accessibilityRole="image"
       accessibilityLabel={`Prévia: ${item.name}`}
       style={{
-        width: 112,
-        height: 110,
-        borderRadius: 18,
+        width: size,
+        height: size,
+        borderRadius: radius.lg,
         overflow: 'hidden',
-        backgroundColor: '#E4EBD8',
+        backgroundColor: colors.lightGreen,
       }}
     >
-      <Canvas style={{ width: 112, height: 110 }}>
-        <Group transform={[{ translateX: 56 }, { translateY: 96 }]}>
-          <ItemArt item={item} />
+      <Canvas style={{ width: size, height: size }}>
+        <Group transform={[{ scale: size / 112 }]}>
+          <Group transform={[{ translateX: 56 }, { translateY: 96 }]}>
+            <ItemArt item={item} />
+          </Group>
         </Group>
       </Canvas>
     </View>

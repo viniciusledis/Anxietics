@@ -8,7 +8,7 @@ const assert = require('node:assert/strict');
   page.on('pageerror', (e) => errors.push(e.message));
   const canvas = page.locator('canvas');
   const percent = async () =>
-    Number(await page.getByRole('progressbar').getAttribute('aria-valuenow'));
+    Number(await page.getByRole('progressbar', { includeHidden: true }).getAttribute('aria-valuenow'));
   const saved = () =>
     page.evaluate(() =>
       JSON.parse(localStorage.getItem('@anxietics/progress/v1')),

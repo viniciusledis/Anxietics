@@ -7,7 +7,8 @@ import {
   TextInputProps,
   View,
 } from 'react-native';
-import { colors } from '../../ui/theme';
+import { colors, radius, space, type } from '../../ui/theme';
+import { Icon } from '../../ui/Icon';
 
 type Props = TextInputProps & {
   label: string;
@@ -16,20 +17,45 @@ type Props = TextInputProps & {
 };
 
 export const AuthInput = forwardRef<TextInput, Props>(function AuthInput(
-  { label, error, password = false, editable = true, style, ...props },
+  {
+    label,
+    error,
+    password = false,
+    editable = true,
+    style,
+    onFocus,
+    onBlur,
+    ...props
+  },
   ref,
 ) {
   const [passwordVisible, setPasswordVisible] = useState(false);
+  const [focused, setFocused] = useState(false);
   return (
     <View style={styles.group}>
       <Text style={styles.label}>{label}</Text>
-      <View style={[styles.field, !!error && styles.fieldError]}>
+      <View
+        style={[
+          styles.field,
+          focused && styles.fieldFocused,
+          !editable && styles.fieldDisabled,
+          !!error && styles.fieldError,
+        ]}
+      >
         <TextInput
           ref={ref}
           accessibilityLabel={label}
           accessibilityHint={error}
           editable={editable}
-          placeholderTextColor="#8A948B"
+          placeholderTextColor={colors.muted}
+          onFocus={(event) => {
+            setFocused(true);
+            onFocus?.(event);
+          }}
+          onBlur={(event) => {
+            setFocused(false);
+            onBlur?.(event);
+          }}
           selectionColor={colors.green}
           secureTextEntry={password && !passwordVisible}
           style={[styles.input, style]}
@@ -46,9 +72,11 @@ export const AuthInput = forwardRef<TextInput, Props>(function AuthInput(
             onPress={() => setPasswordVisible((visible) => !visible)}
             style={styles.visibility}
           >
-            <Text style={styles.visibilityText}>
-              {passwordVisible ? 'Ocultar' : 'Mostrar'}
-            </Text>
+            <Icon
+              name={passwordVisible ? 'eyeOff' : 'eye'}
+              size={22}
+              color={colors.muted}
+            />
           </Pressable>
         )}
       </View>
@@ -62,33 +90,36 @@ export const AuthInput = forwardRef<TextInput, Props>(function AuthInput(
 });
 
 const styles = StyleSheet.create({
-  group: { gap: 7 },
-  label: { color: colors.ink, fontSize: 14, fontWeight: '600' },
+  group: { gap: space.sm },
+  label: { ...type.caption, color: colors.ink, fontWeight: '700' },
   field: {
     minHeight: 54,
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: colors.line,
-    borderRadius: 18,
+    borderRadius: radius.md,
     backgroundColor: colors.paper,
   },
-  fieldError: { borderColor: '#A54A3F' },
+  fieldFocused: { borderColor: colors.green, backgroundColor: '#FAFFF5' },
+  fieldDisabled: { backgroundColor: colors.disabled },
+  fieldError: { borderColor: colors.error },
   input: {
+    ...type.body,
     flex: 1,
+    minWidth: 0,
     minHeight: 52,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.md,
     color: colors.ink,
     fontSize: 16,
   },
   visibility: {
-    minWidth: 72,
+    minWidth: 48,
     minHeight: 48,
-    paddingHorizontal: 12,
+    paddingHorizontal: space.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  visibilityText: { color: colors.green, fontSize: 13, fontWeight: '700' },
-  error: { color: '#913D34', fontSize: 13, lineHeight: 18 },
+  error: { ...type.caption, color: colors.error },
 });

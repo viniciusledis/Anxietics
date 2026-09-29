@@ -1,7 +1,8 @@
 import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from './Button';
-import { colors } from './theme';
-
+import { Icon } from './Icon';
+import { colors, radius, space, type } from './theme';
 export function ConfirmDialog({
   visible,
   title,
@@ -10,6 +11,7 @@ export function ConfirmDialog({
   onCancel,
   onConfirm,
   busy = false,
+  destructive = false,
 }: {
   visible: boolean;
   title: string;
@@ -18,6 +20,7 @@ export function ConfirmDialog({
   onCancel: () => void;
   onConfirm: () => void;
   busy?: boolean;
+  destructive?: boolean;
 }) {
   return (
     <Modal
@@ -26,45 +29,70 @@ export function ConfirmDialog({
       animationType="none"
       onRequestClose={busy ? () => {} : onCancel}
     >
-      <View style={styles.backdrop}>
-        <ScrollView contentContainerStyle={styles.card} style={styles.scroll}>
-          <Text accessibilityRole="header" style={styles.title}>
-            {title}
-          </Text>
-          <Text style={styles.body}>{message}</Text>
-          <Button
-            label={busy ? 'Aguarde…' : confirmLabel}
-            onPress={onConfirm}
-            disabled={busy}
-          />
-          <Button
-            secondary
-            label="Cancelar"
-            onPress={onCancel}
-            disabled={busy}
-          />
-        </ScrollView>
-      </View>
+      <SafeAreaView style={styles.backdrop}>
+        <View accessibilityViewIsModal style={styles.modal}>
+          <ScrollView contentContainerStyle={styles.card} bounces={false}>
+            <View
+              style={[
+                styles.symbol,
+                destructive && { backgroundColor: colors.lightError },
+              ]}
+            >
+              <Icon
+                name={destructive ? 'alert' : 'restart'}
+                size={30}
+                color={destructive ? colors.error : colors.green}
+              />
+            </View>
+            <Text accessibilityRole="header" style={styles.title}>
+              {title}
+            </Text>
+            <Text style={styles.body}>{message}</Text>
+            <Button
+              label={busy ? 'Aguarde…' : confirmLabel}
+              onPress={onConfirm}
+              disabled={busy}
+              loading={busy}
+              destructive={destructive}
+            />
+            <Button
+              secondary
+              label="Cancelar"
+              onPress={onCancel}
+              disabled={busy}
+            />
+          </ScrollView>
+        </View>
+      </SafeAreaView>
     </Modal>
   );
 }
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: '#183B3480',
-    padding: 24,
+    backgroundColor: colors.overlay,
+    padding: space.xxl,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  scroll: {
-    flexGrow: 0,
+  modal: {
     maxHeight: '90%',
     width: '100%',
     maxWidth: 400,
-    borderRadius: 24,
+    borderRadius: radius.xl,
     backgroundColor: colors.paper,
+    overflow: 'hidden',
   },
-  card: { padding: 24, gap: 16 },
-  title: { fontSize: 22, fontWeight: '600', color: colors.ink },
-  body: { fontSize: 15, lineHeight: 23, color: colors.muted },
+  card: { padding: space.xxl, gap: space.lg },
+  symbol: {
+    alignSelf: 'center',
+    width: 60,
+    height: 60,
+    borderRadius: radius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.lightGreen,
+  },
+  title: { ...type.title, color: colors.ink, textAlign: 'center' },
+  body: { ...type.body, color: colors.muted, textAlign: 'center' },
 });

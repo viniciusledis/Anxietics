@@ -11,8 +11,9 @@ import { validateRegistration } from '../../auth/validation';
 import { AuthInput } from '../../components/auth/AuthInput';
 import { AuthShell } from '../../components/auth/AuthShell';
 import { useAuth } from '../../hooks/useAuth';
+import { SproutArt } from '../../ui/primitives';
 import { Button } from '../../ui/Button';
-import { colors, common } from '../../ui/theme';
+import { colors, common, radius, space, type } from '../../ui/theme';
 
 export function RegisterScreen({ onLogin }: { onLogin: () => void }) {
   const { signUp } = useAuth();
@@ -65,7 +66,8 @@ export function RegisterScreen({ onLogin }: { onLogin: () => void }) {
 
   if (confirmationSent) {
     return (
-      <AuthShell>
+      <AuthShell compact>
+        <SproutArt size={140} />
         <Text style={common.eyebrow}>CONTA CRIADA</Text>
         <Text accessibilityRole="header" style={common.title}>
           Confira seu e-mail.
@@ -90,7 +92,7 @@ export function RegisterScreen({ onLogin }: { onLogin: () => void }) {
   };
 
   return (
-    <AuthShell>
+    <AuthShell compact>
       <View style={styles.heading}>
         <Text accessibilityRole="header" style={common.title}>
           Crie seu espaço.
@@ -183,20 +185,19 @@ export function RegisterScreen({ onLogin }: { onLogin: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  heading: { gap: 8, marginBottom: 2 },
+  heading: { gap: space.sm, marginBottom: space.sm },
   feedback: {
-    padding: 13,
-    borderRadius: 14,
-    backgroundColor: '#F7E4DF',
-    color: '#79362F',
-    fontSize: 14,
-    lineHeight: 20,
+    ...type.caption,
+    padding: space.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.lightError,
+    color: colors.error,
   },
   link: {
-    minHeight: 46,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 10,
+    paddingHorizontal: space.sm,
   },
-  linkText: { color: colors.green, fontSize: 15, fontWeight: '700' },
+  linkText: { ...type.label, color: colors.green, textAlign: 'center' },
 });

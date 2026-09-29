@@ -1,6 +1,13 @@
 import { EconomySummary } from '../economy/EconomySummary';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useRef, useState } from 'react';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { Progress } from '../domain/progress';
 import { GAME_INFO } from '../minigames/definitions';
 import { GAME_COMPONENTS } from '../minigames/catalog';
@@ -12,7 +19,18 @@ import {
   unlockedGames,
 } from '../trail/stages';
 import { Button } from '../ui/Button';
-import { colors, common } from '../ui/theme';
+import { BottomNavigation } from '../ui/BottomNavigation';
+import { Icon, gameIcon } from '../ui/Icon';
+import {
+  Badge,
+  Brand,
+  IconButton,
+  ProgressBar,
+  SectionHeader,
+  SegmentedControl,
+  SproutArt,
+} from '../ui/primitives';
+import { colors, common, radius, space, type } from '../ui/theme';
 
 type Props = {
   progress: Progress;
@@ -28,6 +46,8 @@ export function TrailScreen({
   onDev,
   onEconomy,
 }: Props) {
+  const scroll = useRef<ScrollView>(null);
+  const compact = useWindowDimensions().height < 700;
   const [tab, setTab] = useState<'trail' | 'daily' | 'free'>('trail');
   const completeCount = STAGES.filter((stage) =>
     progress.completedStageIds.includes(stage.id),
@@ -37,303 +57,392 @@ export function TrailScreen({
     progress.completedStageIds.includes(id),
   ).length;
   return (
-    <ScrollView style={common.screen} contentContainerStyle={styles.content}>
-      <View style={styles.row}>
-        <Text style={styles.brand}>♧ anxietics</Text>
-        <Button secondary label="Ajustes" onPress={onSettings} />
-      </View>
-      <Text style={[common.eyebrow, { marginTop: 24 }]}>
-        SEU TEMPO, SEU RITMO
-      </Text>
-      <Text style={[common.title, { marginTop: 10 }]}>
-        Seu jardim de pausas.
-      </Text>
-      <Text style={[common.body, { marginTop: 10 }]}>
-        Explore um gesto novo. Volte quando quiser.
-      </Text>
-      <EconomySummary progress={progress} />
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-        <Button secondary label="Loja" onPress={() => onEconomy('shop')} />
-        <Button
-          secondary
-          label="Inventário"
-          onPress={() => onEconomy('inventory')}
+    <View style={common.screen}>
+      <ScrollView
+        ref={scroll}
+        style={common.screen}
+        contentContainerStyle={[
+          styles.content,
+          compact && { gap: space.md, paddingTop: space.md },
+        ]}
+      >
+        <View style={styles.row}>
+          <Brand />
+          <IconButton icon="settings" label="Ajustes" onPress={onSettings} />
+        </View>
+        <View style={styles.welcome}>
+          <View style={styles.welcomeCopy}>
+            <Text style={common.eyebrow}>SEU TEMPO, SEU RITMO</Text>
+            <Text
+              accessibilityRole="header"
+              style={[common.title, compact && type.title]}
+            >
+              Seu jardim de pausas.
+            </Text>
+          </View>
+          <SproutArt size={compact ? 80 : 108} />
+        </View>
+        <EconomySummary progress={progress} />
+        <SegmentedControl
+          value={tab}
+          onChange={setTab}
+          options={[
+            { id: 'trail', label: 'Trilha' },
+            { id: 'daily', label: 'Hoje' },
+            { id: 'free', label: 'Livre' },
+          ]}
         />
-        <Button
-          secondary
-          label="Meu jardim"
-          onPress={() => onEconomy('garden')}
-        />
-        <Button
-          secondary
-          label="Conquistas"
-          onPress={() => onEconomy('achievements')}
-        />
-      </View>
-      <View style={styles.summary}>
-        <Text style={styles.summaryText}>
-          Trilha: {completeCount}/{STAGES.length} · Hoje: {today}/3 atividades
-        </Text>
-        <Text
-          accessibilityLabel={`${completeCount} detalhes no jardim`}
-          style={{ fontSize: 23, color: colors.green }}
-        >
-          {'✿ '.repeat(Math.min(completeCount, 14)) || '·  ·  ·'}
-        </Text>
-        <Text style={styles.small}>
-          Cada etapa acrescenta uma flor ao jardim. Isso representa seu
-          progresso no app.
-        </Text>
+        {tab === 'trail' && (
+          <>
+            <View style={styles.row}>
+              <SectionHeader
+                title="Um gesto de cada vez"
+                detail={`${completeCount} de ${STAGES.length} etapas concluídas`}
+              />
+              <Badge
+                label={`${completeCount}/${STAGES.length}`}
+                icon="flower"
+              />
+            </View>
+            <View style={styles.path}>
+              {STAGES.map((stage, index) => {
+                const status = getStageStatus(
+                  stage.id,
+                  progress.completedStageIds,
+                );
+                const locked =
+                  status === 'locked' || !GAME_COMPONENTS[stage.game];
+                const offset = [0, 32, 64, 32][index % 4] ?? 0;
+                const nextOffset = [0, 32, 64, 32][(index + 1) % 4] ?? 0;
+                return (
+                  <View
+                    key={stage.id}
+                    style={[styles.stage, { marginLeft: offset }]}
+                  >
+                    {index < STAGES.length - 1 && (
+                      <View
+                        pointerEvents="none"
+                        style={[
+                          styles.connector,
+                          {
+                            transform: [
+                              {
+                                rotate: `${-Math.atan2(nextOffset - offset, 120)}rad`,
+                              },
+                            ],
+                          },
+                        ]}
+                      />
+                    )}
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`${stage.title}. ${status === 'completed' ? 'Concluída, repetir' : locked ? 'Bloqueada' : 'Disponível'}`}
+                      accessibilityState={{ disabled: locked }}
+                      disabled={locked}
+                      onPress={() =>
+                        onPlay({
+                          mode: status === 'completed' ? 'free' : 'trail',
+                          game: stage.game,
+                          variation: stage.variation,
+                          stageId: stage.id,
+                        })
+                      }
+                      style={({ pressed }) => [
+                        styles.stageButton,
+                        pressed && { transform: [{ scale: 0.98 }] },
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.node,
+                          locked
+                            ? styles.lockedNode
+                            : status === 'completed'
+                              ? styles.completedNode
+                              : styles.currentNode,
+                        ]}
+                      >
+                        <Icon
+                          name={
+                            locked
+                              ? gameIcon[stage.game]
+                              : status === 'completed'
+                                ? 'flower'
+                                : 'play'
+                          }
+                          size={32}
+                          color={locked ? '#88927F' : colors.paper}
+                        />
+                        <View
+                          style={[
+                            styles.stateMark,
+                            {
+                              backgroundColor: locked
+                                ? colors.disabled
+                                : colors.paper,
+                            },
+                          ]}
+                        >
+                          <Icon
+                            name={
+                              locked
+                                ? 'lock'
+                                : status === 'completed'
+                                  ? 'check'
+                                  : 'sprout'
+                            }
+                            size={14}
+                            color={locked ? colors.muted : colors.green}
+                          />
+                        </View>
+                      </View>
+                      <View style={styles.stageCopy}>
+                        <Text style={styles.step}>
+                          ETAPA {String(index + 1).padStart(2, '0')}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.stageTitle,
+                            locked && { color: colors.muted },
+                          ]}
+                        >
+                          {stage.title}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.status,
+                            status === 'available' && {
+                              color: colors.greenDark,
+                              fontWeight: '700',
+                            },
+                          ]}
+                        >
+                          {locked
+                            ? 'Ainda vai florescer'
+                            : status === 'completed'
+                              ? 'Concluída · jogar de novo'
+                              : 'Disponível · começar'}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  </View>
+                );
+              })}
+            </View>
+          </>
+        )}
+        {tab === 'daily' && (
+          <>
+            <SectionHeader
+              title="Um cuidado para hoje"
+              detail={
+                today === 3
+                  ? 'Seu jardim recebeu os três cuidados de hoje.'
+                  : 'Três convites. Faça o que couber no seu dia.'
+              }
+            />
+            <View style={styles.dailyProgress}>
+              <Icon name="water" color={colors.blue} />
+              <View style={{ flex: 1, gap: space.sm }}>
+                <Text style={styles.stageTitle}>
+                  {today}/3 atividades concluídas
+                </Text>
+                <ProgressBar
+                  value={today}
+                  max={3}
+                  label="Atividades de hoje"
+                  tone="blue"
+                />
+              </View>
+            </View>
+            {progress.daily.tasks.map((task, index) => (
+              <View key={task.id} style={styles.activity}>
+                <View style={styles.activityTop}>
+                  <View style={styles.gameIcon}>
+                    <Icon name={gameIcon[task.game]} size={28} />
+                  </View>
+                  <View style={{ flex: 1, gap: space.xs }}>
+                    <Text style={styles.stageTitle}>
+                      {GAME_INFO[task.game].name}
+                    </Text>
+                    <Text style={common.caption}>
+                      {GAME_INFO[task.game].variations[task.variation]}
+                    </Text>
+                  </View>
+                  <Icon
+                    name={task.completed ? 'check' : 'water'}
+                    color={task.completed ? colors.green : colors.blue}
+                  />
+                </View>
+                <Button
+                  label={
+                    task.completed ? 'Repetir livremente' : 'Jogar atividade'
+                  }
+                  secondary={task.completed}
+                  disabled={!GAME_COMPONENTS[task.game]}
+                  onPress={() =>
+                    onPlay({
+                      mode: task.completed ? 'free' : 'daily',
+                      game: task.game,
+                      variation: task.variation,
+                      day: progress.daily.date,
+                      taskId: task.id,
+                    })
+                  }
+                />
+              </View>
+            ))}
+            <Text style={common.caption}>
+              Uma partida guiada pode concluir uma etapa e a tarefa do mesmo
+              jogo e variação. As recompensas aparecem juntas no resultado.
+            </Text>
+          </>
+        )}
+        {tab === 'free' && (
+          <>
+            <SectionHeader
+              title="Seu tempo de brincar"
+              detail="Repita os jogos abertos, sem metas ou recompensas."
+            />
+            {unlockedGames(progress.completedStageIds).map((game) => (
+              <View key={game} style={styles.activity}>
+                <View style={styles.activityTop}>
+                  <View style={styles.gameIcon}>
+                    <Icon name={gameIcon[game]} size={28} />
+                  </View>
+                  <Text style={[styles.stageTitle, { flex: 1 }]}>
+                    {GAME_INFO[game].name}
+                  </Text>
+                </View>
+                {GAME_INFO[game].variations.map((name, variation) => (
+                  <Button
+                    key={name}
+                    secondary
+                    label={name}
+                    icon="play"
+                    disabled={!GAME_COMPONENTS[game]}
+                    onPress={() => onPlay({ mode: 'free', game, variation })}
+                  />
+                ))}
+              </View>
+            ))}
+            <Text style={common.caption}>
+              O modo livre não concede sementes, XP ou avanço nas conquistas.
+            </Text>
+          </>
+        )}
         {legacyCount > 0 && (
-          <Text style={styles.small}>
+          <Text style={common.caption}>
             {legacyCount} conquistas da primeira versão também estão
             preservadas.
           </Text>
         )}
-      </View>
-      <View style={styles.tabs}>
-        {(
-          [
-            ['trail', 'Trilha'],
-            ['daily', 'Hoje'],
-            ['free', 'Livre'],
-          ] as const
-        ).map(([id, label]) => (
-          <Pressable
-            key={id}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: tab === id }}
-            onPress={() => setTab(id)}
-            style={[
-              styles.tab,
-              tab === id && { backgroundColor: colors.green },
-            ]}
-          >
-            <Text
-              style={{
-                fontWeight: '600',
-                color: tab === id ? colors.paper : colors.green,
-              }}
-            >
-              {label}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-      {tab === 'trail' && (
-        <>
-          <Text style={common.eyebrow}>14 GESTOS PARA DESCOBRIR</Text>
-          {STAGES.map((stage, index) => {
-            const status = getStageStatus(stage.id, progress.completedStageIds);
-            const locked = status === 'locked' || !GAME_COMPONENTS[stage.game];
-            const info = GAME_INFO[stage.game];
-            return (
-              <View
-                key={stage.id}
-                style={[styles.stage, { marginLeft: index % 2 ? 24 : 0 }]}
-              >
-                {index < STAGES.length - 1 && <View style={styles.connector} />}
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`${stage.title}. ${status === 'completed' ? 'Concluída, repetir' : locked ? 'Bloqueada' : 'Disponível'}`}
-                  accessibilityState={{ disabled: locked }}
-                  disabled={locked}
-                  onPress={() =>
-                    onPlay({
-                      mode: status === 'completed' ? 'free' : 'trail',
-                      game: stage.game,
-                      variation: stage.variation,
-                      stageId: stage.id,
-                    })
-                  }
-                  style={styles.stageButton}
-                >
-                  <View
-                    style={[
-                      styles.node,
-                      {
-                        backgroundColor: locked
-                          ? '#E0E3D9'
-                          : status === 'completed'
-                            ? colors.green
-                            : info.accent,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 26,
-                        color: locked ? colors.muted : colors.paper,
-                      }}
-                    >
-                      {status === 'completed' ? '✓' : info.symbol}
-                    </Text>
-                  </View>
-                  <View style={{ flex: 1, gap: 5 }}>
-                    <Text style={styles.stageTitle}>
-                      {String(index + 1).padStart(2, '0')} · {stage.title}
-                    </Text>
-                    <Text style={styles.small}>
-                      {locked
-                        ? 'Conclua a etapa anterior'
-                        : status === 'completed'
-                          ? 'Concluída · jogar livremente'
-                          : 'Disponível · descobrir →'}
-                    </Text>
-                  </View>
-                </Pressable>
-              </View>
-            );
-          })}
-        </>
-      )}
-      {tab === 'daily' && (
-        <>
-          <Text style={common.eyebrow}>TRÊS CONVITES PARA HOJE</Text>
-          <Text style={styles.small}>
-            {today === 3
-              ? 'Atividades concluídas. O modo livre continua aberto.'
-              : 'Uma sugestão, sem obrigação. Estas escolhas ficam guardadas durante o dia.'}
-          </Text>
-          {progress.daily.tasks.map((task, index) => (
-            <View key={task.id} style={styles.card}>
-              <Text style={styles.stageTitle}>
-                {index + 1}. {GAME_INFO[task.game].name}
-              </Text>
-              <Text style={styles.small}>
-                {GAME_INFO[task.game].variations[task.variation]} ·{' '}
-                {task.completed ? 'Concluída hoje' : 'Disponível'}
-              </Text>
-              <Button
-                label={
-                  task.completed ? 'Repetir livremente' : 'Jogar atividade'
-                }
-                disabled={!GAME_COMPONENTS[task.game]}
-                onPress={() =>
-                  onPlay({
-                    mode: task.completed ? 'free' : 'daily',
-                    game: task.game,
-                    variation: task.variation,
-                    day: progress.daily.date,
-                    taskId: task.id,
-                  })
-                }
-              />
-            </View>
-          ))}
-          <Text style={styles.small}>
-            Uma partida guiada pode concluir uma etapa e a tarefa do mesmo jogo
-            e variação. As recompensas aparecem juntas no resultado.
-          </Text>
-        </>
-      )}
-      {tab === 'free' && (
-        <>
-          <Text style={common.eyebrow}>CAMPOS ABERTOS</Text>
-          <Text style={styles.small}>
-            Repita qualquer jogo liberado. Sem sementes, XP ou avanço nas
-            conquistas nesta versão.
-          </Text>
-          {unlockedGames(progress.completedStageIds).map((game) => (
-            <View key={game} style={styles.card}>
-              <Text style={styles.stageTitle}>{GAME_INFO[game].name}</Text>
-              {GAME_INFO[game].variations.map((name, variation) => (
-                <Button
-                  key={name}
-                  secondary
-                  label={name}
-                  disabled={!GAME_COMPONENTS[game]}
-                  onPress={() => onPlay({ mode: 'free', game, variation })}
-                />
-              ))}
-            </View>
-          ))}
-        </>
-      )}
-      {!!onDev && (
-        <Button
-          secondary
-          label="Laboratório de desenvolvimento"
-          onPress={onDev}
-        />
-      )}
-      <Text style={styles.disclaimer}>
-        O Anxietics não substitui acompanhamento profissional. Seu progresso não
-        mede melhora da saúde mental.
-      </Text>
-    </ScrollView>
+        <Text style={styles.gentle}>
+          Seu jardim estará aqui quando você voltar.
+        </Text>
+        {!!onDev && (
+          <Button
+            secondary
+            icon="lab"
+            label="Laboratório de desenvolvimento"
+            onPress={onDev}
+          />
+        )}
+        <Text style={styles.disclaimer}>
+          O Anxietics não substitui acompanhamento profissional. Seu progresso
+          não mede melhora da saúde mental.
+        </Text>
+      </ScrollView>
+      <BottomNavigation
+        onHome={() => scroll.current?.scrollTo({ y: 0, animated: false })}
+        onNavigate={onEconomy}
+      />
+    </View>
   );
 }
 const styles = StyleSheet.create({
-  content: {
-    padding: 22,
-    gap: 16,
-    maxWidth: 600,
-    alignSelf: 'center',
-    width: '100%',
-  },
+  content: { ...common.content, gap: space.xl },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: space.sm,
   },
-  brand: {
-    fontSize: 25,
-    fontWeight: '700',
-    color: colors.ink,
-    letterSpacing: -1,
-  },
-  summary: {
-    padding: 18,
-    borderRadius: 20,
-    backgroundColor: colors.lightGreen,
-    gap: 9,
-  },
-  summaryText: { fontSize: 16, fontWeight: '600', color: colors.ink },
-  tabs: { flexDirection: 'row', gap: 8, marginVertical: 8 },
-  tab: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 16,
-    borderRadius: 16,
-    backgroundColor: colors.lightGreen,
-  },
-  stage: { minHeight: 106, justifyContent: 'center' },
+  welcome: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  welcomeCopy: { flex: 1, gap: space.sm },
+  path: { paddingHorizontal: space.sm },
+  stage: { minHeight: 120, justifyContent: 'center' },
   connector: {
     position: 'absolute',
-    left: 31,
+    width: 5,
+    height: 126,
+    left: 32,
     top: 60,
-    width: 4,
-    height: 85,
-    backgroundColor: '#D3DEC5',
+    backgroundColor: colors.line,
+    borderRadius: radius.round,
+    transformOrigin: 'top',
   },
   stageButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-    paddingVertical: 12,
+    gap: space.lg,
+    paddingVertical: space.md,
   },
   node: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
+    width: 68,
+    height: 68,
+    borderRadius: radius.xl,
+    borderBottomWidth: 5,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stageTitle: { fontSize: 17, fontWeight: '600', color: colors.ink },
-  small: { fontSize: 13, color: colors.muted, lineHeight: 20 },
-  card: {
-    padding: 18,
-    borderRadius: 20,
+  currentNode: { backgroundColor: colors.green, borderColor: colors.greenDark },
+  completedNode: { backgroundColor: '#70A04E', borderColor: colors.green },
+  lockedNode: { backgroundColor: colors.disabled, borderColor: '#CED6C5' },
+  stateMark: {
+    position: 'absolute',
+    right: -4,
+    bottom: -6,
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.round,
+    borderWidth: 2,
+    borderColor: colors.background,
+  },
+  stageCopy: { flex: 1, gap: space.xs },
+  step: { ...type.small, color: colors.muted, letterSpacing: 0.6 },
+  stageTitle: { ...type.label, color: colors.ink },
+  status: { ...type.caption, color: colors.muted },
+  activity: {
+    padding: space.lg,
+    borderRadius: radius.lg,
     backgroundColor: colors.paper,
-    gap: 12,
+    gap: space.lg,
     borderWidth: 1,
     borderColor: colors.line,
   },
-  disclaimer: {
-    fontSize: 12,
-    lineHeight: 18,
-    color: colors.muted,
-    marginVertical: 16,
+  activityTop: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  gameIcon: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.lightGreen,
+    borderRadius: radius.md,
   },
+  dailyProgress: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.lg,
+    paddingVertical: space.sm,
+  },
+  gentle: {
+    ...type.caption,
+    color: colors.greenDark,
+    textAlign: 'center',
+    marginTop: space.lg,
+  },
+  disclaimer: { ...type.small, color: colors.muted, textAlign: 'center' },
 });

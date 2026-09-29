@@ -17,7 +17,8 @@ import { unlockedGames } from '../trail/stages';
 import { Button } from '../ui/Button';
 import { SaveNotice } from '../ui/SaveNotice';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
-import { colors, common } from '../ui/theme';
+import { colors, common, space } from '../ui/theme';
+import { SproutArt } from '../ui/primitives';
 import { useReducedMotion } from '../ui/useReducedMotion';
 
 const DEV_TOOLS = __DEV__ && process.env.EXPO_PUBLIC_DEV_TOOLS === '1';
@@ -73,10 +74,19 @@ export function AppNavigator() {
     <SafeAreaView style={common.screen}>
       {!store.progress ? (
         <View
-          style={{ flex: 1, justifyContent: 'center', padding: 28, gap: 18 }}
+          style={{
+            flex: 1,
+            justifyContent: 'center',
+            padding: space.xxl,
+            gap: space.lg,
+            maxWidth: 460,
+            width: '100%',
+            alignSelf: 'center',
+          }}
         >
           {store.loadError ? (
             <>
+              <SproutArt size={120} />
               <Text style={common.title}>Vamos tentar de novo?</Text>
               <Text style={common.body}>
                 Não foi possível ler o progresso. Os dados não foram
@@ -100,6 +110,7 @@ export function AppNavigator() {
               )}
               <ConfirmDialog
                 visible={confirmReset}
+                destructive
                 title="Apagar dados locais?"
                 message="Etapas, conquistas, XP, sementes, compras virtuais, equipamentos, jardim e preferências serão apagados. Isso reinicia o perfil local."
                 confirmLabel="Apagar e recomeçar"
@@ -114,6 +125,7 @@ export function AppNavigator() {
             </>
           ) : (
             <>
+              <SproutArt size={140} />
               <ActivityIndicator color={colors.green} />
               <Text style={common.body}>Abrindo seu caminho…</Text>
             </>

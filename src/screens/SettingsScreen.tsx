@@ -3,7 +3,9 @@ import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useAuth } from '../hooks/useAuth';
 import { Button } from '../ui/Button';
-import { colors, common } from '../ui/theme';
+import { colors, common, radius, space, type } from '../ui/theme';
+import { SectionHeader, TopBar } from '../ui/primitives';
+import { Icon } from '../ui/Icon';
 
 type Props = {
   reducedMotion: boolean;
@@ -33,29 +35,37 @@ export function SettingsScreen({
       : null;
   return (
     <ScrollView style={common.screen} contentContainerStyle={styles.content}>
-      <Button
-        secondary
-        label="‹  Voltar à trilha"
-        onPress={onExit}
+      <TopBar
+        title="Ajustes"
+        onBack={onExit}
         disabled={resetBusy || signOutBusy}
-        style={{ alignSelf: 'flex-start' }}
       />
-      <Text style={[common.eyebrow, { marginTop: 32 }]}>DO SEU JEITO</Text>
-      <Text style={[common.title, { marginTop: 10 }]}>Ajustes e cuidados</Text>
+      <View style={styles.account}>
+        <View style={styles.avatar}>
+          <Icon name="sprout" size={32} />
+        </View>
+        <View style={{ flex: 1, gap: space.xs }}>
+          <Text style={styles.subtitle}>{displayName ?? 'Seu espaço'}</Text>
+          <Text style={styles.body}>{user?.email ?? 'Conta autenticada'}</Text>
+        </View>
+      </View>
+      <SectionHeader
+        title="Do seu jeito"
+        detail="Um pouco mais de conforto para sua pausa."
+      />
       <View style={styles.preference}>
         <View style={{ flex: 1, gap: 6 }}>
           <Text style={styles.subtitle}>Menos movimento</Text>
           <Text style={styles.body}>
-            Reduz animações de conclusão, encaixes, frutas e tinta. O movimento
-            que acompanha o dedo continua. A preferência do sistema também é
-            respeitada.
+            Reduz as animações. O gesto para jogar continua, e a preferência do
+            sistema é respeitada.
           </Text>
         </View>
         <Switch
           accessibilityLabel="Menos movimento"
           value={reducedMotion}
           onValueChange={onReducedMotion}
-          trackColor={{ false: '#CED5C2', true: colors.green }}
+          trackColor={{ false: colors.line, true: colors.green }}
           thumbColor={colors.paper}
         />
       </View>
@@ -68,17 +78,15 @@ export function SettingsScreen({
         O aplicativo não substitui acompanhamento profissional, não faz
         diagnósticos e não oferece tratamento.
       </Text>
+      <View style={common.divider} />
       <Text style={styles.subtitle}>Sua conta</Text>
       <Text style={styles.body}>
-        {displayName ? `${displayName} · ` : ''}
-        {user?.email ?? 'Conta autenticada'}
-      </Text>
-      <Text style={styles.body}>
-        A sessão da conta é mantida pelo Supabase para que você possa voltar sem
-        entrar novamente. Sua senha não é armazenada pelo aplicativo.
+        Você continua conectado para voltar com facilidade. Sua senha não é
+        armazenada pelo aplicativo.
       </Text>
       <Button
         secondary
+        icon="logout"
         label={signOutBusy ? 'Saindo…' : 'Sair da conta'}
         loading={signOutBusy}
         disabled={resetBusy}
@@ -97,6 +105,7 @@ export function SettingsScreen({
           {signOutError}
         </Text>
       )}
+      <View style={common.divider} />
       <Text style={styles.subtitle}>Seu progresso, neste aparelho</Text>
       <Text style={styles.body}>
         Etapas, atividades do dia e esta preferência continuam no armazenamento
@@ -115,6 +124,8 @@ export function SettingsScreen({
       </Text>
       <Button
         secondary
+        destructive
+        icon="trash"
         label="Apagar dados deste aparelho"
         disabled={signOutBusy}
         onPress={() => setConfirm(true)}
@@ -127,6 +138,7 @@ export function SettingsScreen({
       )}
       <ConfirmDialog
         visible={confirm}
+        destructive
         title="Apagar todos os dados?"
         message="Isso apaga etapas, conquistas, XP, sementes, compras virtuais, equipamentos, jardim, tarefas e preferências. O perfil local reinicia com o presente inicial. Não é possível desfazer."
         confirmLabel="Apagar e recomeçar"
@@ -150,30 +162,37 @@ export function SettingsScreen({
 }
 
 const styles = StyleSheet.create({
-  content: {
-    padding: 24,
-    gap: 16,
-    maxWidth: 580,
-    alignSelf: 'center',
-    width: '100%',
+  content: { ...common.content, gap: space.lg },
+  account: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.lg,
+    paddingVertical: space.lg,
+  },
+  avatar: {
+    width: 64,
+    height: 64,
+    borderRadius: radius.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.lightGreen,
   },
   preference: {
     flexDirection: 'row',
-    gap: 16,
+    gap: space.lg,
     alignItems: 'center',
-    paddingVertical: 24,
+    paddingVertical: space.xl,
     borderBottomWidth: 1,
     borderColor: colors.line,
-    marginBottom: 10,
+    marginBottom: space.sm,
   },
-  subtitle: { fontSize: 18, color: colors.ink, fontWeight: '600' },
-  body: { fontSize: 15, lineHeight: 23, color: colors.muted },
-  error: { fontSize: 14, lineHeight: 20, color: '#913D34' },
+  subtitle: { ...type.section, color: colors.ink },
+  body: { ...type.body, color: colors.muted },
+  error: { ...type.caption, color: colors.error },
   version: {
-    marginTop: 16,
-    fontSize: 11,
-    lineHeight: 19,
+    ...type.small,
+    marginTop: space.lg,
     color: colors.muted,
-    letterSpacing: 0.5,
+    textAlign: 'center',
   },
 });

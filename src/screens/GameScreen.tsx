@@ -20,7 +20,15 @@ import { grassEquipment } from '../economy/rules';
 import { TransactionResult } from '../storage/transactions';
 import { Button } from '../ui/Button';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
-import { colors, common } from '../ui/theme';
+import { colors, radius, shadows, space, type } from '../ui/theme';
+import { Icon } from '../ui/Icon';
+import {
+  Badge,
+  IconButton,
+  ProgressBar,
+  SproutArt,
+  TopBar,
+} from '../ui/primitives';
 
 type Props = {
   session: Session;
@@ -64,7 +72,8 @@ export function GameScreen({
   const opacity = useRef(new Animated.Value(0)).current;
   const info = GAME_INFO[session.game];
   const Component = GAME_COMPONENTS[session.game];
-  const is3D = !!GAME_3D_COMPONENTS[session.game] &&
+  const is3D =
+    !!GAME_3D_COMPONENTS[session.game] &&
     (session.visual ?? session.grassVisual) !== '2d';
   const grass3D = is3D && session.game === 'grass';
   const FieldComponent = is3D ? GAME_3D_COMPONENTS[session.game] : Component;
@@ -180,121 +189,153 @@ export function GameScreen({
   }[session.mode];
   return (
     <View style={styles.screen}>
-      <View style={styles.header}>
-        <Button
-          secondary
-          label="‹  Voltar"
-          onPress={onExit}
-          disabled={savingResult}
-          style={styles.back}
-        />
-        <Text style={common.eyebrow}>{modeLabel}</Text>
-      </View>
-      <View style={styles.intro}>
-        <Text style={styles.title}>{info.name}</Text>
-        {session.game === 'grass' && (
-          <Text
-            testID="grass-loadout"
-            style={{ color: colors.muted, fontSize: 12, marginTop: 6 }}
-          >
-            {loadout.name}
-          </Text>
-        )}
-        <View style={styles.progressLabel}>
-          <Text style={styles.instruction}>
-            {openEnded ? info.freeInstruction : info.instruction}
-          </Text>
-          {!openEnded && (
-            <Text style={[styles.percent, is3D && styles.grassPercent]}>
-              {percent}%
+      <View
+        style={styles.gameContent}
+        accessibilityElementsHidden={complete || paused || !foreground}
+        aria-hidden={complete || paused || !foreground}
+        importantForAccessibility={
+          complete || paused || !foreground ? 'no-hide-descendants' : 'auto'
+        }
+      >
+        <View style={styles.header}>
+          <IconButton
+            icon="back"
+            label="‹  Voltar"
+            onPress={onExit}
+            disabled={savingResult}
+          />
+          <Badge label={modeLabel} />
+        </View>
+        <View style={styles.intro}>
+          <Text style={styles.title}>{info.name}</Text>
+          {session.game === 'grass' && (
+            <Text testID="grass-loadout" style={styles.loadout}>
+              {loadout.name}
             </Text>
           )}
-        </View>
-        {!openEnded && (
-          <View
-            accessible
-            accessibilityRole="progressbar"
-            accessibilityLabel="Progresso da atividade"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={percent}
-            style={[styles.track, is3D && styles.grassTrack]}
-          >
+          <View style={styles.progressLabel}>
+            <Text style={styles.instruction}>
+              {openEnded ? info.freeInstruction : info.instruction}
+            </Text>
+            {!openEnded && (
+              <Text style={[styles.percent, is3D && styles.grassPercent]}>
+                {percent}%
+              </Text>
+            )}
+          </View>
+          {!openEnded && (
+            <ProgressBar label="Progresso da atividade" value={percent} />
+          )}
+          {grass3D && (
+            <Text style={styles.grassCaption}>
+              {percent >= 75
+                ? 'Quase pronto — o jardim já respira.'
+                : percent >= 25
+                  ? 'O caminho aparado está aparecendo.'
+                  : 'Deslize sem pressa. Cada passada conta.'}
+            </Text>
+          )}
+          {!!info.colors && (
             <View
-              style={[
-                styles.fill,
-                is3D && styles.grassFill,
-                is3D && { backgroundColor: grass3D ? '#6E9D5C' : info.accent },
-                { width: `${percent}%` },
-              ]}
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'center',
+                gap: space.lg,
+                marginTop: space.sm,
+              }}
+            >
+              {info.colors.map((shade, index) => (
+                <Pressable
+                  key={shade}
+                  disabled={!enabled}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Cor ${index + 1}`}
+                  accessibilityState={{ selected: color === index }}
+                  onPress={() => setColor(index)}
+                  style={{
+                    width: 48,
+                    height: 44,
+                    borderRadius: radius.md,
+                    borderWidth: color === index ? 3 : 1,
+                    borderColor: color === index ? colors.ink : colors.line,
+                    backgroundColor: shade,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Icon
+                    name={
+                      index === 0 ? 'flower' : index === 1 ? 'leaf' : 'water'
+                    }
+                    size={20}
+                    color={colors.ink}
+                  />
+                </Pressable>
+              ))}
+            </View>
+          )}
+        </View>
+        <View style={styles.fieldArea} onLayout={layout}>
+          {(is3D || field.scale > 0) && FieldComponent && (
+            <View style={is3D ? styles.frame3D : styles.frame}>
+              <FieldComponent
+                key={attempt}
+                game={session.game}
+                variation={session.variation}
+                mode={session.mode}
+                scale={field.scale}
+                enabled={enabled}
+                reducedMotion={reducedMotion}
+                color={color}
+                grassEquipment={loadout}
+                onProgress={report}
+                onComplete={finish}
+              />
+            </View>
+          )}
+        </View>
+        <View style={styles.bottom}>
+          <View style={{ flexDirection: 'row', gap: space.sm }}>
+            <Button
+              secondary
+              icon="restart"
+              compact
+              label="Recomeçar"
+              disabled={savingResult}
+              style={{ flex: 1 }}
+              onPress={() => setConfirmRestart(true)}
+            />
+            <Button
+              secondary
+              icon="pause"
+              compact
+              label="Pausar"
+              style={{ flex: 1 }}
+              onPress={() => setPaused(true)}
+              disabled={complete || paused}
             />
           </View>
-        )}
-        {grass3D && (
-          <Text style={styles.grassCaption}>
-            {percent >= 75
-              ? 'Quase pronto — o jardim já respira.'
-              : percent >= 25
-                ? 'O caminho aparado está aparecendo.'
-                : 'Deslize sem pressa. Cada passada conta.'}
+          {openEnded && !complete && (
+            <Button
+              label="Encerrar por aqui"
+              onPress={finish}
+              disabled={!enabled}
+            />
+          )}
+          <Text style={styles.exitNote}>
+            Sem pressa. Ao sair, só esta rodada recomeça.
           </Text>
-        )}
-        {!!info.colors && (
-          <View
-            style={{
-              flexDirection: 'row',
-              justifyContent: 'center',
-              gap: 16,
-              marginTop: 8,
-            }}
-          >
-            {info.colors.map((shade, index) => (
-              <Pressable
-                key={shade}
-                disabled={!enabled}
-                accessibilityRole="button"
-                accessibilityLabel={`Cor ${index + 1}`}
-                accessibilityState={{ selected: color === index }}
-                onPress={() => setColor(index)}
-                style={{
-                  width: 48,
-                  height: 44,
-                  borderRadius: 14,
-                  borderWidth: color === index ? 3 : 1,
-                  borderColor: color === index ? colors.ink : colors.line,
-                  backgroundColor: shade,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Text style={{ color: '#233C32', fontWeight: '700' }}>
-                  {['●', '◇', '≋'][index]}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        )}
+        </View>
       </View>
-      <View style={styles.fieldArea} onLayout={layout}>
-        {(is3D || field.scale > 0) && FieldComponent && (
-          <View style={is3D ? styles.frame3D : styles.frame}>
-            <FieldComponent
-              key={attempt}
-              game={session.game}
-              variation={session.variation}
-              mode={session.mode}
-              scale={field.scale}
-              enabled={enabled}
-              reducedMotion={reducedMotion}
-              color={color}
-              grassEquipment={loadout}
-              onProgress={report}
-              onComplete={finish}
-            />
-          </View>
-        )}
-        {(paused || !foreground) && !complete && (
-          <View style={[styles.celebration, { padding: 24, gap: 16 }]}>
+      {(paused || !foreground) && !complete && (
+        <View style={styles.pauseOverlay} accessibilityViewIsModal>
+          <ScrollView
+            style={styles.pauseScroll}
+            contentContainerStyle={styles.pauseCard}
+          >
+            <View style={styles.pauseIcon}>
+              <Icon name="pause" size={28} />
+            </View>
             <Text style={styles.completeTitle}>Uma pausa.</Text>
             <Text style={styles.completeBody}>Sua rodada está aqui.</Text>
             <Button
@@ -303,143 +344,139 @@ export function GameScreen({
               disabled={!foreground}
             />
             <Button secondary label="Sair da rodada" onPress={onExit} />
-          </View>
-        )}
-        {complete && (
-          <Animated.View
-            testID="completion-card"
-            style={[styles.celebration, { opacity }]}
-          >
-            <ScrollView contentContainerStyle={styles.celebrationContent}>
-              <View style={styles.seal}>
-                <Text style={styles.check}>✓</Text>
-              </View>
-              <Text style={styles.completeTitle}>Um momento concluído.</Text>
-              <Text style={styles.completeBody}>
-                {session.mode === 'dev'
-                  ? 'Teste concluído. Seu progresso não foi alterado.'
-                  : session.mode === 'daily' && session.day !== localDay()
-                    ? 'O dia mudou durante a rodada. As novas tarefas estão na trilha.'
-                    : 'Você pode seguir ou brincar mais um pouco.'}
-              </Text>
-              {savingResult && (
-                <Text style={styles.completeBody}>
-                  Confirmando o salvamento…
-                </Text>
-              )}
-              {!confirmed && !!saveError && (
-                <>
-                  <Text
-                    accessibilityLiveRegion="polite"
-                    style={styles.completeBody}
-                  >
-                    {saveError}
-                  </Text>
-                  <Button
-                    label="Tentar salvar conclusão"
-                    disabled={savingResult}
-                    onPress={() => {
-                      if (completionSession.current)
-                        void saveCompletion(completionSession.current);
-                    }}
-                  />
-                </>
-              )}
-              {confirmed && receipt && (
-                <View testID="reward-breakdown" style={{ gap: 9 }}>
-                  {receipt.completed.map((label, i) => (
-                    <Text key={i} style={styles.completeBody}>
-                      {label}
-                    </Text>
-                  ))}
-                  {receipt.lines.map((line) => (
-                    <Text key={line.eventId} style={styles.completeBody}>
-                      {line.label}: +{line.seeds} sementes · +{line.xp} XP
-                    </Text>
-                  ))}
-                  <Text
-                    testID="rewards-total"
-                    style={{
-                      color: colors.green,
-                      fontSize: 17,
-                      fontWeight: '600',
-                      textAlign: 'center',
-                    }}
-                  >
-                    Recebido: {receipt.lines.reduce((n, l) => n + l.seeds, 0)}{' '}
-                    sementes · {receipt.lines.reduce((n, l) => n + l.xp, 0)} XP
-                  </Text>
-                  {receipt.levelAfter > receipt.levelBefore && (
-                    <Text style={styles.completeBody}>
-                      Novo nível: {receipt.levelAfter}
-                    </Text>
-                  )}
-                  <Text style={styles.completeBody}>
-                    Saldo: {progress.economy.seeds} sementes · Nível{' '}
-                    {receipt.levelAfter}
-                  </Text>
-                </View>
-              )}
-              {confirmed && !receipt && session.mode === 'free' && (
-                <Text style={styles.completeBody}>
-                  Modo livre: sem sementes ou XP. Continue no seu ritmo.
-                </Text>
-              )}
-              <Button
-                label="Continuar trilha"
-                disabled={!confirmed || savingResult}
-                onPress={onContinue}
-              />
-              <Button
-                secondary
-                label="Visitar loja"
-                disabled={!confirmed || savingResult}
-                onPress={onShop}
-              />
-              <Button
-                secondary
-                label="Voltar à trilha"
-                disabled={savingResult}
-                onPress={onExit}
-              />
-              <Button
-                secondary
-                label="Jogar livremente"
-                disabled={!confirmed || savingResult}
-                onPress={onFree}
-              />
-            </ScrollView>
-          </Animated.View>
-        )}
-      </View>
-      <View style={styles.bottom}>
-        <View style={{ flexDirection: 'row', gap: 10 }}>
-          <Button
-            secondary
-            label="Recomeçar"
-            disabled={savingResult}
-            style={{ flex: 1 }}
-            onPress={() => setConfirmRestart(true)}
-          />
-          <Button
-            secondary
-            label="Pausar"
-            style={{ flex: 1 }}
-            onPress={() => setPaused(true)}
-            disabled={complete || paused}
-          />
+            <Button
+              secondary
+              compact
+              icon="restart"
+              label="Recomeçar"
+              onPress={() => setConfirmRestart(true)}
+              disabled={savingResult}
+            />
+          </ScrollView>
         </View>
-        {openEnded && !complete && (
-          <Button
-            label="Encerrar por aqui"
-            onPress={finish}
-            disabled={!enabled}
-          />
-        )}
-        <Text style={styles.exitNote}>
-          Sem pressa. Ao sair, só esta rodada recomeça.
-        </Text>
-      </View>
+      )}
+      {complete && (
+        <Animated.View
+          testID="completion-card"
+          accessibilityViewIsModal
+          style={[styles.celebration, { opacity }]}
+        >
+          <View style={{ paddingHorizontal: space.md }}>
+            <TopBar
+              title="Seu momento"
+              backLabel="‹  Voltar"
+              onBack={onExit}
+              disabled={savingResult}
+              trailing={
+                <IconButton
+                  icon="restart"
+                  label="Recomeçar"
+                  onPress={() => setConfirmRestart(true)}
+                  disabled={savingResult}
+                />
+              }
+            />
+          </View>
+          <ScrollView contentContainerStyle={styles.celebrationContent}>
+            <SproutArt size={104} />
+            <View style={{ alignSelf: 'center' }}>
+              <Badge label="ATIVIDADE CONCLUÍDA" icon="check" />
+            </View>
+            <Text style={styles.completeTitle}>Um momento concluído.</Text>
+            <Text style={styles.completeBody}>
+              {session.mode === 'dev'
+                ? 'Teste concluído. Seu progresso não foi alterado.'
+                : session.mode === 'daily' && session.day !== localDay()
+                  ? 'O dia mudou durante a rodada. As novas tarefas estão na trilha.'
+                  : 'Você pode seguir ou brincar mais um pouco.'}
+            </Text>
+            {savingResult && (
+              <Text style={styles.completeBody}>Confirmando o salvamento…</Text>
+            )}
+            {!confirmed && !!saveError && (
+              <>
+                <Text
+                  accessibilityLiveRegion="polite"
+                  style={styles.completeBody}
+                >
+                  {saveError}
+                </Text>
+                <Button
+                  label="Tentar salvar conclusão"
+                  disabled={savingResult}
+                  onPress={() => {
+                    if (completionSession.current)
+                      void saveCompletion(completionSession.current);
+                  }}
+                />
+              </>
+            )}
+            {confirmed && receipt && (
+              <View testID="reward-breakdown" style={styles.reward}>
+                {receipt.completed.map((label, i) => (
+                  <Text key={i} style={styles.completeBody}>
+                    {label}
+                  </Text>
+                ))}
+                {receipt.lines.map((line) => (
+                  <Text key={line.eventId} style={styles.completeBody}>
+                    {line.label}: +{line.seeds} sementes · +{line.xp} XP
+                  </Text>
+                ))}
+                <Text
+                  testID="rewards-total"
+                  style={{
+                    color: colors.green,
+                    ...type.label,
+                    textAlign: 'center',
+                  }}
+                >
+                  Recebido: {receipt.lines.reduce((n, l) => n + l.seeds, 0)}{' '}
+                  sementes · {receipt.lines.reduce((n, l) => n + l.xp, 0)} XP
+                </Text>
+                {receipt.levelAfter > receipt.levelBefore && (
+                  <Text style={styles.completeBody}>
+                    Novo nível: {receipt.levelAfter}
+                  </Text>
+                )}
+                <Text style={styles.completeBody}>
+                  Saldo: {progress.economy.seeds} sementes · Nível{' '}
+                  {receipt.levelAfter}
+                </Text>
+              </View>
+            )}
+            {confirmed && !receipt && session.mode === 'free' && (
+              <Text style={styles.completeBody}>
+                Modo livre: sem sementes ou XP. Continue no seu ritmo.
+              </Text>
+            )}
+            <Button
+              icon="sprout"
+              label="Continuar trilha"
+              disabled={!confirmed || savingResult}
+              onPress={onContinue}
+            />
+            <Button
+              secondary
+              label="Visitar loja"
+              disabled={!confirmed || savingResult}
+              onPress={onShop}
+            />
+            <Button
+              secondary
+              label="Voltar à trilha"
+              disabled={savingResult}
+              onPress={onExit}
+            />
+            <Button
+              secondary
+              label="Jogar livremente"
+              disabled={!confirmed || savingResult}
+              onPress={onFree}
+            />
+          </ScrollView>
+        </Animated.View>
+      )}
       <ConfirmDialog
         visible={confirmRestart}
         title="Recomeçar a rodada?"
@@ -460,124 +497,128 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     backgroundColor: colors.background,
   },
+  gameContent: { flex: 1 },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
+    paddingHorizontal: space.md,
+    paddingTop: space.xs,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: space.md,
   },
-  back: { minHeight: 48, paddingVertical: 10, paddingHorizontal: 14 },
-  intro: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 10 },
-  title: {
-    fontSize: 23,
-    fontWeight: '600',
-    color: colors.ink,
-    letterSpacing: -0.7,
+  intro: {
+    paddingHorizontal: space.xl,
+    paddingTop: space.sm,
+    paddingBottom: space.sm,
   },
+  title: { ...type.title, color: colors.ink },
+  loadout: { ...type.small, color: colors.muted, marginTop: space.xs },
   progressLabel: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
-    marginTop: 12,
-    marginBottom: 10,
+    gap: space.md,
+    marginTop: space.sm,
+    marginBottom: space.md,
   },
-  instruction: { fontSize: 13, color: colors.muted, flex: 1 },
+  instruction: { ...type.caption, color: colors.muted, flex: 1 },
   percent: {
-    fontSize: 15,
+    ...type.label,
     color: colors.green,
-    fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
-  grassPercent: {
-    color: colors.ink,
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  track: {
-    height: 5,
-    backgroundColor: colors.line,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  fill: { height: '100%', backgroundColor: colors.green, borderRadius: 3 },
-  grassTrack: { height: 9, borderRadius: 6, backgroundColor: colors.lightGreen },
-  grassFill: { backgroundColor: '#6E9D5C', borderRadius: 6 },
-  grassCaption: {
-    color: colors.green,
-    fontSize: 11,
-    fontWeight: '600',
-    marginTop: 7,
-    minHeight: 16,
-  },
+  grassPercent: { color: colors.greenDark },
+  grassCaption: { ...type.small, color: colors.green, marginTop: space.sm },
   fieldArea: {
     flex: 1,
-    marginHorizontal: 12,
+    marginHorizontal: space.md,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 90,
   },
-  frame: { padding: 6, backgroundColor: '#E0E3D0', borderRadius: 7 },
+  frame: {
+    padding: space.xs,
+    backgroundColor: colors.line,
+    borderRadius: radius.sm,
+  },
   frame3D: {
     width: '100%',
     height: '100%',
-    borderRadius: 24,
+    borderRadius: radius.xl,
     overflow: 'hidden',
     backgroundColor: colors.background,
   },
-  bottom: { paddingHorizontal: 24, paddingBottom: 10, paddingTop: 8, gap: 10 },
-  note: {
-    color: colors.muted,
-    fontSize: 12,
-    textAlign: 'center',
-    lineHeight: 17,
+  bottom: {
+    paddingHorizontal: space.xl,
+    paddingBottom: space.sm,
+    paddingTop: space.sm,
+    gap: space.sm,
   },
-  exitNote: {
-    color: colors.muted,
-    fontSize: 11,
-    lineHeight: 16,
-    textAlign: 'center',
+  exitNote: { ...type.small, color: colors.muted, textAlign: 'center' },
+  pauseOverlay: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: colors.overlay,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: space.xl,
+  },
+  pauseScroll: {
+    flexGrow: 0,
+    maxHeight: '90%',
+    width: '100%',
+    maxWidth: 350,
+    borderRadius: radius.xl,
+    backgroundColor: colors.paper,
+  },
+  pauseCard: {
+    padding: space.xxl,
+    gap: space.lg,
+    borderRadius: radius.xl,
+    backgroundColor: colors.paper,
+    ...shadows.soft,
+  },
+  pauseIcon: {
+    alignSelf: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 52,
+    height: 52,
+    backgroundColor: colors.lightGreen,
+    borderRadius: radius.lg,
   },
   celebration: {
     position: 'absolute',
-    width: '90%',
-    maxWidth: 350,
-    maxHeight: '96%',
-    borderRadius: 24,
-    backgroundColor: colors.paper,
-    borderWidth: 1,
-    borderColor: '#DBE3CE',
-    shadowColor: '#233C32',
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 4,
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: colors.background,
   },
-  celebrationContent: { padding: 24, gap: 12 },
-  seal: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.lightGreen,
+  celebrationContent: {
+    flexGrow: 1,
+    padding: space.xxl,
+    gap: space.md,
     justifyContent: 'center',
-    alignItems: 'center',
+    width: '100%',
+    maxWidth: 440,
     alignSelf: 'center',
   },
-  check: { fontSize: 26, color: colors.green },
-  completeTitle: {
-    color: colors.ink,
-    fontSize: 23,
-    fontWeight: '600',
-    textAlign: 'center',
-    letterSpacing: -0.5,
+  reward: {
+    gap: space.sm,
+    padding: space.lg,
+    marginVertical: space.sm,
+    borderRadius: radius.lg,
+    backgroundColor: colors.lightGreen,
   },
+  completeTitle: { ...type.title, color: colors.ink, textAlign: 'center' },
   completeBody: {
+    ...type.caption,
     color: colors.muted,
-    fontSize: 14,
-    lineHeight: 21,
     textAlign: 'center',
-    marginBottom: 4,
+    marginBottom: space.xs,
   },
 });

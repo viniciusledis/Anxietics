@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Canvas, Circle, Group, Path, Rect } from '@shopify/react-native-skia';
 import { Progress } from '../domain/progress';
 import { GARDEN_SLOTS, SlotId, findItem, ITEMS } from '../economy/catalog';
@@ -7,7 +7,8 @@ import { ItemArt, ItemPreview } from '../economy/ItemArt';
 import { EconomySummary } from '../economy/EconomySummary';
 import { TransactionResult } from '../storage/transactions';
 import { Button } from '../ui/Button';
-import { colors, common } from '../ui/theme';
+import { colors, common, radius, space, type } from '../ui/theme';
+import { EmptyState, SectionHeader, TopBar } from '../ui/primitives';
 type Props = {
   progress: Progress;
   busy: boolean;
@@ -39,34 +40,19 @@ export function GardenScreen({
   const slot = GARDEN_SLOTS.find((s) => s.id === selected)!;
   const scale = width / 320;
   return (
-    <ScrollView
-      style={common.screen}
-      contentContainerStyle={{
-        padding: 22,
-        gap: 16,
-        width: '100%',
-        maxWidth: 600,
-        alignSelf: 'center',
-      }}
-    >
-      <Button
-        secondary
-        label="Voltar à trilha"
-        onPress={onExit}
-        disabled={busy}
-      />
-      <Text style={common.title}>Meu jardim</Text>
+    <ScrollView style={common.screen} contentContainerStyle={common.content}>
+      <TopBar title="Meu jardim" onBack={onExit} disabled={busy} />
       <EconomySummary progress={progress} compact />
-      <Text style={common.body}>
-        Toque em uma posição e escolha uma decoração. Você pode mover ou remover
-        depois.
-      </Text>
+      <SectionHeader
+        title="Um cantinho só seu"
+        detail="Escolha um lugar. Depois, uma decoração."
+      />
       <View
         onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
         style={{
           width: '100%',
           height: width ? 330 * scale : 330,
-          borderRadius: 24,
+          borderRadius: radius.xl,
           overflow: 'hidden',
           backgroundColor: '#DFE9D2',
         }}
@@ -129,9 +115,9 @@ export function GardenScreen({
               marginLeft: -32,
               width: 64,
               height: 56,
-              borderRadius: 12,
+              borderRadius: radius.md,
               borderWidth: selected === s.id ? 2 : 1,
-              borderStyle: 'dashed',
+              borderStyle: selected === s.id ? 'solid' : 'dashed',
               borderColor: selected === s.id ? colors.green : '#879D7B',
               justifyContent: 'flex-end',
               alignItems: 'center',
@@ -140,10 +126,10 @@ export function GardenScreen({
             <Text
               style={{
                 color: colors.ink,
-                fontSize: 11,
-                backgroundColor: '#F5F4EB',
-                paddingHorizontal: 5,
-                borderRadius: 6,
+                ...type.small,
+                backgroundColor: colors.paper,
+                paddingHorizontal: space.sm,
+                borderRadius: radius.sm,
               }}
             >
               {i + 1}
@@ -151,10 +137,7 @@ export function GardenScreen({
           </Pressable>
         ))}
       </View>
-      <Text
-        accessibilityRole="header"
-        style={{ color: colors.ink, fontSize: 20, fontWeight: '600' }}
-      >
+      <Text accessibilityRole="header" style={common.section}>
         Posição: {slot.name}
       </Text>
       <Text style={common.body}>
@@ -168,6 +151,7 @@ export function GardenScreen({
       )}
       <Button
         secondary
+        icon="restart"
         label="Remover desta posição"
         disabled={busy || !progress.economy.garden[selected]}
         onPress={() => {
@@ -175,19 +159,11 @@ export function GardenScreen({
         }}
       />
       {items.map((item) => (
-        <View
-          key={item.id}
-          style={{
-            padding: 16,
-            backgroundColor: colors.paper,
-            borderRadius: 20,
-            gap: 10,
-          }}
-        >
+        <View key={item.id} style={styles.item}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
             <ItemPreview item={item} />
             <View style={{ flex: 1 }}>
-              <Text style={common.body}>{item.name}</Text>
+              <Text style={styles.itemTitle}>{item.name}</Text>
               <Text style={common.body}>
                 {Object.values(progress.economy.garden).includes(item.id)
                   ? 'No jardim · pode ser movido'
@@ -205,15 +181,32 @@ export function GardenScreen({
         </View>
       ))}
       {!items.length && (
-        <Text style={common.body}>
-          Seu jardim já está aberto. As decorações adquiridas aparecerão aqui.
-        </Text>
+        <EmptyState
+          title="Aqui começa seu cantinho"
+          message="Seu jardim já está aberto. As decorações adquiridas aparecerão aqui."
+        />
       )}
-      <Text style={{ color: colors.muted, fontSize: 13, lineHeight: 20 }}>
+      <Text style={common.caption}>
         Ao mover, a posição anterior fica livre. Ao substituir, a decoração
         anterior volta ao inventário. Cada item ocupa uma posição por vez.
       </Text>
-      <Button secondary label="Visitar loja" disabled={busy} onPress={onShop} />
+      <Button
+        secondary
+        icon="shop"
+        label="Visitar loja"
+        disabled={busy}
+        onPress={onShop}
+      />
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  item: {
+    paddingVertical: space.xl,
+    borderBottomWidth: 1,
+    borderColor: colors.line,
+    gap: space.lg,
+  },
+  itemTitle: { ...type.label, color: colors.ink },
+});

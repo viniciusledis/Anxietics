@@ -5,7 +5,7 @@ import { AuthInput } from '../../components/auth/AuthInput';
 import { AuthShell } from '../../components/auth/AuthShell';
 import { useAuth } from '../../hooks/useAuth';
 import { Button } from '../../ui/Button';
-import { colors, common } from '../../ui/theme';
+import { colors, common, radius, space, type } from '../../ui/theme';
 
 export function LoginScreen({ onRegister }: { onRegister: () => void }) {
   const { signIn, initializationError } = useAuth();
@@ -102,20 +102,19 @@ export function LoginScreen({ onRegister }: { onRegister: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  heading: { gap: 8, marginBottom: 2 },
+  heading: { gap: space.sm, marginBottom: space.sm },
   feedback: {
-    padding: 13,
-    borderRadius: 14,
-    backgroundColor: '#F7E4DF',
-    color: '#79362F',
-    fontSize: 14,
-    lineHeight: 20,
+    ...type.caption,
+    padding: space.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.lightError,
+    color: colors.error,
   },
   link: {
-    minHeight: 46,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 10,
+    paddingHorizontal: space.sm,
   },
-  linkText: { color: colors.green, fontSize: 15, fontWeight: '700' },
+  linkText: { ...type.label, color: colors.green, textAlign: 'center' },
 });

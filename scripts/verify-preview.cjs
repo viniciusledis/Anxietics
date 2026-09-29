@@ -56,7 +56,7 @@ const pots = [
     if (msg.type() === 'error') console.error('CONSOLE:', msg.text());
   });
   const percent = async () =>
-    Number(await page.getByRole('progressbar').getAttribute('aria-valuenow'));
+    Number(await page.getByRole('progressbar', { includeHidden: true }).getAttribute('aria-valuenow'));
   const saved = () =>
     page.evaluate(() =>
       JSON.parse(localStorage.getItem('@anxietics/progress/v1')),
@@ -102,7 +102,7 @@ const pots = [
       .click();
     await expect(page.locator('canvas')).toBeVisible();
     if (!free)
-      await expect(page.getByRole('progressbar')).toHaveAttribute(
+      await expect(page.getByRole('progressbar', { includeHidden: true })).toHaveAttribute(
         'aria-valuenow',
         '0',
       );
@@ -135,6 +135,11 @@ const pots = [
       for (let y = 1; y <= 447 && (await percent()) < 100; y += 28)
         await stroke([1, y], [319, y]);
       if ((await percent()) < 100) await stroke([1, 447], [319, 447]);
+      // O HUD responsivo muda a proporção do canvas. A câmera 3D se acomoda
+      // nos primeiros quadros; complete a varredura com gestos verticais reais.
+      if (game === 'grass' && (await percent()) < 100)
+        for (let x = 1; x <= 319 && (await percent()) < 100; x += 24)
+          await stroke([x, 1], [x, 447]);
     }
     if (game === 'sand')
       for (let i = 0; i < 4; i++)
@@ -185,7 +190,7 @@ const pots = [
       for (const y of [95, 223, 351]) await stroke([20, y], [300, y]);
     await expect(page.getByTestId('completion-card')).toBeVisible();
     await expect(page.getByTestId('completion-card')).toHaveCSS('opacity', '1');
-    await expect(page.getByRole('progressbar')).toHaveAttribute(
+    await expect(page.getByRole('progressbar', { includeHidden: true })).toHaveAttribute(
       'aria-valuenow',
       '100',
     );
@@ -209,7 +214,7 @@ const pots = [
       .poll(async () => (await saved()).preferences.reducedMotion)
       .toBe(true);
     await page
-      .getByRole('button', { name: '‹  Voltar à trilha', exact: true })
+      .getByRole('button', { name: 'Voltar à trilha', exact: true })
       .click();
     const baseline = await saved();
     for (const game of games) {
@@ -248,7 +253,7 @@ const pots = [
       await page
         .getByRole('button', { name: 'Sim, recomeçar', exact: true })
         .click();
-      await expect(page.getByRole('progressbar')).toHaveAttribute(
+      await expect(page.getByRole('progressbar', { includeHidden: true })).toHaveAttribute(
         'aria-valuenow',
         '0',
       );
@@ -266,7 +271,7 @@ const pots = [
       for (let i = 0; i < 5; i++)
         await stroke([20, 90 + i * 60], [300, 90 + i * 60]);
       await expect(page.getByTestId('completion-card')).toHaveCount(0);
-      await expect(page.getByRole('progressbar')).toHaveCount(0);
+      await expect(page.getByRole('progressbar', { includeHidden: true })).toHaveCount(0);
       await page
         .getByRole('button', { name: 'Encerrar por aqui', exact: true })
         .click();
@@ -354,7 +359,7 @@ const pots = [
     }
     await page.getByRole('tab', { name: 'Hoje', exact: true }).click();
     await expect(
-      page.getByText('Atividades concluídas. O modo livre continua aberto.', {
+      page.getByText('Seu jardim recebeu os três cuidados de hoje.', {
         exact: true,
       }),
     ).toBeVisible();

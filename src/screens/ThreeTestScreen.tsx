@@ -1,14 +1,8 @@
 import { Component, ReactNode, useEffect, useState } from 'react';
-import {
-  AppState,
-  AppStateStatus,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { AppState, AppStateStatus, StyleSheet, Text, View } from 'react-native';
 import { ThreeTestScene } from '../three/ThreeTestScene';
-import { Button } from '../ui/Button';
-import { colors, common } from '../ui/theme';
+import { TopBar } from '../ui/primitives';
+import { colors, common, radius, space, type } from '../ui/theme';
 
 type ErrorBoundaryProps = { children: ReactNode };
 type ErrorBoundaryState = { failed: boolean };
@@ -27,7 +21,9 @@ class ThreePreviewErrorBoundary extends Component<
     if (this.state.failed) {
       return (
         <View style={styles.fallback}>
-          <Text style={styles.fallbackTitle}>O canvas 3D não pôde ser aberto.</Text>
+          <Text style={styles.fallbackTitle}>
+            O canvas 3D não pôde ser aberto.
+          </Text>
           <Text style={common.body}>
             Confira se este cliente Expo inclui suporte ao expo-gl.
           </Text>
@@ -52,15 +48,11 @@ export function ThreeTestScreen({ onExit }: { onExit: () => void }) {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.header}>
-        <Button
-          secondary
-          label="‹  Laboratório"
-          onPress={onExit}
-          style={styles.back}
-        />
-        <Text style={common.eyebrow}>TESTE 3D ISOLADO</Text>
-      </View>
+      <TopBar
+        title="Teste 3D isolado"
+        onBack={onExit}
+        backLabel="‹  Laboratório"
+      />
 
       <View style={styles.copy}>
         <Text style={styles.title}>Objeto interativo</Text>
@@ -101,7 +93,12 @@ export function ThreeTestScreen({ onExit }: { onExit: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background, padding: 20, gap: 16 },
+  screen: {
+    flex: 1,
+    backgroundColor: colors.background,
+    padding: space.xl,
+    gap: space.lg,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -112,23 +109,21 @@ const styles = StyleSheet.create({
   copy: { gap: 8 },
   title: {
     color: colors.ink,
-    fontSize: 28,
-    fontWeight: '700',
-    letterSpacing: -0.8,
+    ...type.title,
   },
   canvasFrame: {
     flex: 1,
     minHeight: 280,
     maxHeight: 520,
     overflow: 'hidden',
-    borderRadius: 28,
+    borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.line,
     backgroundColor: colors.lightGreen,
   },
   hud: {
     minHeight: 76,
-    borderRadius: 20,
+    borderRadius: radius.lg,
     paddingHorizontal: 20,
     paddingVertical: 13,
     backgroundColor: colors.paper,
@@ -141,9 +136,7 @@ const styles = StyleSheet.create({
   hudRight: { alignItems: 'flex-end' },
   hudLabel: {
     color: colors.muted,
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1.5,
+    ...type.eyebrow,
   },
   hudValue: { color: colors.ink, fontSize: 24, fontWeight: '700' },
   state: { color: colors.green, fontSize: 17, fontWeight: '700', marginTop: 3 },
