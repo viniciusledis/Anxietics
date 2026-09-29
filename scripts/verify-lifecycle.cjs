@@ -23,7 +23,7 @@ const assert = require('node:assert/strict');
       })
       .click();
     await page
-      .getByRole('button', { name: new RegExp(`^Testar ${game} ·`) })
+      .getByRole('button', { name: new RegExp(`^Comparar ${game} ·.*2D original$`) })
       .nth(variation)
       .click();
     await expect(canvas).toBeVisible();

@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { fitField } from '../minigames/grass/coverage';
 import { GAME_COMPONENTS } from '../minigames/catalog';
-import { GrassGame3D } from '../minigames/grass/GrassGame3D';
+import { GAME_3D_COMPONENTS } from '../minigames/three/catalog';
 import { GAME_INFO } from '../minigames/definitions';
 import { Session } from '../minigames/types';
 import { localDay, Progress } from '../domain/progress';
@@ -64,8 +64,10 @@ export function GameScreen({
   const opacity = useRef(new Animated.Value(0)).current;
   const info = GAME_INFO[session.game];
   const Component = GAME_COMPONENTS[session.game];
-  const grass3D = session.game === 'grass' && session.grassVisual !== '2d';
-  const FieldComponent = grass3D ? GrassGame3D : Component;
+  const is3D = !!GAME_3D_COMPONENTS[session.game] &&
+    (session.visual ?? session.grassVisual) !== '2d';
+  const grass3D = is3D && session.game === 'grass';
+  const FieldComponent = is3D ? GAME_3D_COMPONENTS[session.game] : Component;
   const openEnded = session.mode === 'free' && info.openEnded;
   const enabled = foreground && !paused && !confirmRestart && !complete;
   useEffect(() => {
@@ -203,7 +205,7 @@ export function GameScreen({
             {openEnded ? info.freeInstruction : info.instruction}
           </Text>
           {!openEnded && (
-            <Text style={[styles.percent, grass3D && styles.grassPercent]}>
+            <Text style={[styles.percent, is3D && styles.grassPercent]}>
               {percent}%
             </Text>
           )}
@@ -216,12 +218,13 @@ export function GameScreen({
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={percent}
-            style={[styles.track, grass3D && styles.grassTrack]}
+            style={[styles.track, is3D && styles.grassTrack]}
           >
             <View
               style={[
                 styles.fill,
-                grass3D && styles.grassFill,
+                is3D && styles.grassFill,
+                is3D && { backgroundColor: grass3D ? '#6E9D5C' : info.accent },
                 { width: `${percent}%` },
               ]}
             />
@@ -273,8 +276,8 @@ export function GameScreen({
         )}
       </View>
       <View style={styles.fieldArea} onLayout={layout}>
-        {(grass3D || field.scale > 0) && FieldComponent && (
-          <View style={grass3D ? styles.frame3D : styles.frame}>
+        {(is3D || field.scale > 0) && FieldComponent && (
+          <View style={is3D ? styles.frame3D : styles.frame}>
             <FieldComponent
               key={attempt}
               game={session.game}

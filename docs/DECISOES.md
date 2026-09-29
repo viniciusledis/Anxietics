@@ -16,14 +16,15 @@ A investigação futura pode observar engajamento e percepção de relaxamento. 
 
 | Decisão | Motivo e limite |
 | --- | --- |
-| React Native + Expo SDK 54 + TypeScript | Código compartilhado Android/iOS, início acessível via Expo Go compatível, tipos básicos para tornar os contratos claros. SDK 54 foi fixado pela distribuição do Expo Go no iPhone; não é a versão mais nova. |
+| React Native 0.86 + Expo SDK 57 + TypeScript 6 | Código compartilhado Android/iOS, Nova Arquitetura obrigatória e dependências nativas alinhadas pelo Expo. O SDK 57 também corrige regressões de memória e inicialização presentes em versões anteriores do Hermes V1. |
+| UIKit scene lifecycle no iOS | `expo-build-properties` habilita `ios.enableSceneSupport`, necessário para o aplicativo iniciar corretamente quando o SDK 57 é compilado com Xcode 27/iOS 27. |
 | Skia + Gesture Handler + Reanimated | Views nativas bastam para telas e botões; milhares de pequenas Views de grama trariam trabalho desnecessário de layout e reconciliação. Skia agrupa desenho em paths e recebe valores compartilhados na UI thread. O custo é uma dependência gráfica nativa e maior complexidade no adaptador do jogo. |
 | Malha de 8.960 células e máscara limitada | Área sem contagem dupla, memória limitada pelo tamanho do campo. Células são amostradas pelo centro; bordas têm discretização de quatro unidades lógicas. A máscara representa a mesma área contabilizada. |
 | Segmentos completos entre eventos | Continuidade inclusive quando o sistema entrega poucos pontos num gesto rápido. Curvas não capturadas pelo sistema são aproximadas por segmentos retos; não podemos reconstruir movimentos que não foram recebidos. |
 | Campo de proporção fixa com escala uniforme | Não deforma a máquina e permite preservar o corte ao mudar o espaço disponível. Pode haver margens em telas com outras proporções. Área de jogo não fica sob os controles nem sob barras do sistema. Orientação principal é retrato. |
 | Conclusão em 95% | Evita caça aos últimos fragmentos. O 100% mostrado depois representa a finalização visual automática; o motor mantém a contagem real do instante de conclusão. |
 | Navegação por estado | Adequada a trilha, jogo e ajustes; botão voltar do Android tratado. Sem deep links e histórico de navegação complexo nesta entrega. |
-| AsyncStorage com JSON versionado e fila | Persistência simples, sem conta nem backend. Fila impede que uma escrita lenta antiga sobrescreva uma nova; o app só libera a interação após ler o estado inicial. Falhas não são ocultadas. |
+| AsyncStorage com JSON versionado e fila | O progresso dos jogos permanece local e separado do perfil Supabase. A fila impede que uma escrita lenta antiga sobrescreva uma nova; o app só libera a interação após ler o estado inicial. Falhas não são ocultadas. |
 | Economia local na entrega 0.3 | XP permanente e sementes gastáveis são separados da trilha. Um único snapshot contém saldo, propriedade, equipamentos e marcos. Não existe pontuação de saúde. |
 | Dia local com três tarefas fixas | Seleção determinística entre jogos já liberados, com variações quando há poucas opções. Fica salva até mudar a data. Trilha e tarefas mantêm registros próprios; a entrega 0.3 permite reconhecer ambos numa partida guiada correspondente. O modo livre não remunera. Sem histórico de calendário nem sanção por ausência. |
 | Movimento reduzido | Conclusão por opacidade, encaixes e divisão de frutas usam transições curtas; tinta cresce suavemente. O ajuste local ou do sistema elimina essas animações. O gesto necessário para jogar permanece. Sem flashes, sons ou vibração. |
@@ -32,11 +33,12 @@ A investigação futura pode observar engajamento e percepção de relaxamento. 
 
 - [Matriz Expo / React Native e requisitos de sistema](https://docs.expo.dev/versions/latest/).
 - [Compatibilidade entre SDK e Expo Go](https://docs.expo.dev/troubleshooting/expo-go-version-mismatch/).
-- [Skia no SDK 54](https://docs.expo.dev/versions/v54.0.0/sdk/skia/): 2.2.12 incluído no Expo Go.
-- [Reanimated no SDK 54](https://docs.expo.dev/versions/v54.0.0/sdk/reanimated/): instalação via Expo e configuração automática pelo preset Babel.
+- [Expo SDK 57](https://expo.dev/changelog/sdk-57): React Native 0.86 e atualizações das bibliotecas de gestos/animação.
+- [Skia no SDK 57](https://docs.expo.dev/versions/v57.0.0/sdk/skia/): versão alinhada pelo `expo install`.
+- [Reanimated no SDK 57](https://docs.expo.dev/versions/v57.0.0/sdk/reanimated/): instalação via Expo e configuração automática pelo preset Babel.
 - [Gestos com Skia](https://shopify.github.io/react-native-skia/docs/animations/gestures/): integração recomendada com Gesture Handler.
 - [Animações e valores compartilhados](https://shopify.github.io/react-native-skia/docs/animations/animations/).
-- [AsyncStorage no SDK 54](https://docs.expo.dev/versions/v54.0.0/sdk/async-storage/).
+- [AsyncStorage no SDK 57](https://docs.expo.dev/versions/v57.0.0/sdk/async-storage/).
 - [Preparação do Skia para a prévia web](https://shopify.github.io/react-native-skia/docs/getting-started/web/).
 
 As versões exatas resolvidas estão no `package-lock.json`. Reproduza com `npm ci`; use `npx expo install` ao adicionar módulos nativos. Não atualizar React Native, Skia ou Reanimated isoladamente sem rever a compatibilidade do SDK.
@@ -93,7 +95,7 @@ Sementes não têm valor monetário. Não há pagamento, anúncio, consumível, 
 
 Não há teste com participantes nem medição de FPS, latência ou consumo de memória em aparelhos intermediários. A arquitetura busca reduzir trabalho por gesto, mas isso não prova fluidez. O jogo exige interação visual e arraste; rótulos e botões acessíveis não tornam o campo plenamente jogável por leitor de tela. Essa adaptação ainda precisa ser projetada e avaliada.
 
-O estado parcial dos jogos não é persistido entre sessões. Não há exportação/backup próprio, onboarding, calendário histórico, sons, vibração ou notificações. O aplicativo não contém imagens pagas, login, backend ou anúncios. As variações reutilizam regras: mudam cores, padrão ou desenho, sem serem contabilizadas como novos jogos.
+O estado parcial dos jogos não é persistido entre sessões. Não há exportação/backup próprio, onboarding, calendário histórico, sons, vibração ou notificações. Login, cadastro e perfis usam Supabase; não há anúncios. As variações reutilizam regras: mudam cores, padrão ou desenho, sem serem contabilizadas como novos jogos.
 
 Testes no Chrome exercitaram os 14 jogos, pausa, reinício, persistência web, diário e modo livre. Isso não executa worklets na thread nativa, nem valida o AsyncStorage de Android/iOS. A exportação de bundles não substitui compilação e execução nativa. O roteiro e evidências estão em [VALIDACAO.md](VALIDACAO.md).
 

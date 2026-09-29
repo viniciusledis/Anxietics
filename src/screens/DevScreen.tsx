@@ -1,5 +1,6 @@
 import { ScrollView, Text, View } from 'react-native';
 import { GAME_CATALOG } from '../minigames/catalog';
+import { GAME_3D_COMPONENTS } from '../minigames/three/catalog';
 import { Session } from '../minigames/types';
 import { Button } from '../ui/Button';
 import { common } from '../ui/theme';
@@ -31,31 +32,41 @@ export function DevScreen({
             <View key={name} style={{ gap: 7 }}>
               <Button
                 disabled={!game.component}
-                label={`Testar ${game.id} · ${name}${game.id === 'grass' ? ' · 3D' : ''}`}
-                onPress={() => onPlay({ mode: 'dev', game: game.id, variation })}
+                label={`Testar ${game.id} · ${name}${GAME_3D_COMPONENTS[game.id] ? ' · 3D' : ''}`}
+                onPress={() => onPlay({ mode: 'dev', game: game.id, variation, visual: '3d' })}
               />
-              {game.id === 'grass' && (
+              {!!GAME_3D_COMPONENTS[game.id] && (
                 <Button
                   secondary
                   label={`Comparar ${game.id} · ${name} · 2D original`}
-                  onPress={() => onPlay({ mode: 'dev', game: game.id, variation, grassVisual: '2d' })}
+                  onPress={() => onPlay({ mode: 'dev', game: game.id, variation, visual: '2d' })}
                 />
               )}
             </View>
           ))}
           {game.openEnded && (
-            <Button
-              secondary
-              label={`Livre · ${game.id}`}
-              onPress={() =>
-                onPlay({
-                  mode: 'free',
-                  game: game.id,
-                  variation: 0,
-                  sandbox: true,
-                })
-              }
-            />
+            <>
+              <Button
+                secondary
+                label={`Livre · ${game.id}${GAME_3D_COMPONENTS[game.id] ? ' · 3D' : ''}`}
+                onPress={() =>
+                  onPlay({
+                    mode: 'free',
+                    game: game.id,
+                    variation: 0,
+                    sandbox: true,
+                    visual: '3d',
+                  })
+                }
+              />
+              {!!GAME_3D_COMPONENTS[game.id] && (
+                <Button
+                  secondary
+                  label={`Livre · ${game.id} · 2D original`}
+                  onPress={() => onPlay({ mode: 'free', game: game.id, variation: 0, sandbox: true, visual: '2d' })}
+                />
+              )}
+            </>
           )}
         </View>
       ))}

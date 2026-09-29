@@ -42,5 +42,7 @@ export type Session = {
   taskId?: string;
   day?: string;
   sandbox?: boolean;
+  visual?: '2d' | '3d';
+  // Compatibilidade com sessões do laboratório anteriores à migração geral.
   grassVisual?: '2d' | '3d';
 };

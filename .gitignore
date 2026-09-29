@@ -7,4 +7,5 @@ coverage/
 android/
 ios/
 .env*
+!.env.example
 public/canvaskit.wasm

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { useAuth } from '../hooks/useAuth';
 import { Button } from '../ui/Button';
 import { colors, common } from '../ui/theme';
 
@@ -22,13 +23,21 @@ export function SettingsScreen({
   resetError,
 }: Props) {
   const [confirm, setConfirm] = useState(false);
+  const [signOutBusy, setSignOutBusy] = useState(false);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
+  const { user, signOut } = useAuth();
+  const metadataName = user?.user_metadata.name;
+  const displayName =
+    typeof metadataName === 'string' && metadataName.trim()
+      ? metadataName.trim()
+      : null;
   return (
     <ScrollView style={common.screen} contentContainerStyle={styles.content}>
       <Button
         secondary
         label="‹  Voltar à trilha"
         onPress={onExit}
-        disabled={resetBusy}
+        disabled={resetBusy || signOutBusy}
         style={{ alignSelf: 'flex-start' }}
       />
       <Text style={[common.eyebrow, { marginTop: 32 }]}>DO SEU JEITO</Text>
@@ -59,12 +68,40 @@ export function SettingsScreen({
         O aplicativo não substitui acompanhamento profissional, não faz
         diagnósticos e não oferece tratamento.
       </Text>
+      <Text style={styles.subtitle}>Sua conta</Text>
+      <Text style={styles.body}>
+        {displayName ? `${displayName} · ` : ''}
+        {user?.email ?? 'Conta autenticada'}
+      </Text>
+      <Text style={styles.body}>
+        A sessão da conta é mantida pelo Supabase para que você possa voltar sem
+        entrar novamente. Sua senha não é armazenada pelo aplicativo.
+      </Text>
+      <Button
+        secondary
+        label={signOutBusy ? 'Saindo…' : 'Sair da conta'}
+        loading={signOutBusy}
+        disabled={resetBusy}
+        onPress={() => {
+          if (signOutBusy) return;
+          setSignOutBusy(true);
+          setSignOutError(null);
+          void signOut().then((result) => {
+            setSignOutError(result.error);
+            setSignOutBusy(false);
+          });
+        }}
+      />
+      {!!signOutError && (
+        <Text accessibilityLiveRegion="assertive" style={styles.error}>
+          {signOutError}
+        </Text>
+      )}
       <Text style={styles.subtitle}>Seu progresso, neste aparelho</Text>
       <Text style={styles.body}>
-        Não há conta, anúncios ou envio de dados para um servidor do Anxietics.
-        Etapas, atividades do dia e esta preferência ficam no armazenamento
-        local do aplicativo. A política de backup do aparelho pode incluir esses
-        dados.
+        Etapas, atividades do dia e esta preferência continuam no armazenamento
+        local do aplicativo e não são sincronizadas com a conta nesta versão. A
+        política de backup do aparelho pode incluir esses dados.
       </Text>
       <Text style={styles.body}>
         Não existe sequência para manter. A cada dia, a sugestão de três
@@ -79,6 +116,7 @@ export function SettingsScreen({
       <Button
         secondary
         label="Apagar dados deste aparelho"
+        disabled={signOutBusy}
         onPress={() => setConfirm(true)}
       />
       {resetError && (
@@ -130,6 +168,7 @@ const styles = StyleSheet.create({
   },
   subtitle: { fontSize: 18, color: colors.ink, fontWeight: '600' },
   body: { fontSize: 15, lineHeight: 23, color: colors.muted },
+  error: { fontSize: 14, lineHeight: 20, color: '#913D34' },
   version: {
     marginTop: 16,
     fontSize: 11,

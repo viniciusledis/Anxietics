@@ -5,7 +5,6 @@
     "version": "0.3.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "platforms": [
       "android",
       "ios",
@@ -16,11 +15,24 @@
       "bundleIdentifier": "com.anxietics.app"
     },
     "android": {
-      "package": "com.anxietics.app",
-      "edgeToEdgeEnabled": true
+      "package": "com.anxietics.app"
     },
-    "splash": {
-      "backgroundColor": "#F5F4EB"
-    }
+    "plugins": [
+      "expo-status-bar",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#F5F4EB"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "enableSceneSupport": true
+          }
+        }
+      ]
+    ]
   }
 }

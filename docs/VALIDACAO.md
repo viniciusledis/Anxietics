@@ -1,15 +1,16 @@
 # Validação do MVP 0.3
 
-Executada em 14/09/2026, no macOS 13.7.8, Node 22.21.0. Não houve avaliação com participantes nem medição de eficácia clínica.
+Validação original executada em 14/09/2026 e atualização técnica para o Expo SDK 57 verificada em 23/09/2026, no macOS 13.7.8 e Node 22.21.0. Não houve avaliação com participantes nem medição de eficácia clínica.
 
 ## Verificações automatizadas
 
 | Verificação | Resultado | O que comprova |
 | --- | --- | --- |
-| `npm run check` | TypeScript sem erros; 55 testes aprovados | Contratos e regras puras; persistência com armazenamento simulado. |
-| `npm run doctor` | 18/18 verificações aprovadas | Configuração e compatibilidade verificadas pelo Expo. |
-| `npx expo install --check` | Dependências compatíveis | Alinhamento com o SDK 54 instalado. |
+| `npm run check` | TypeScript sem erros; 63 testes aprovados | Contratos e regras puras; autenticação e persistência com armazenamento simulado. |
+| `npm run doctor -- --verbose` | 21/21 verificações aprovadas | Configuração, schema, peers, versões nativas, Hermes e requisitos das lojas verificados pelo Expo. |
+| `npx expo install --check` | Dependências compatíveis | Alinhamento com o SDK 57 instalado. |
 | `npm run export:mobile` | Android e iOS exportados | Geração de bundles JavaScript/Hermes; não compila APK/IPA nem executa o app nativo. |
+| `npx expo export --platform web` | Web exportada | Compatibilidade de Metro, React Native Web, Skia e CanvasKit no empacotamento. |
 | Roteiro principal Playwright | 14 jogos concluídos por gestos | Integração da variante inicial de cada jogo na prévia web. |
 | Roteiro de ciclo de vida Playwright | Aprovado | Animações e pausas web, variações adicionais e migração v1/v2→v3. |
 

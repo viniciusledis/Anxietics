@@ -207,6 +207,7 @@ export function AppNavigator() {
                   sandbox:
                     screen.session.mode === 'dev' || screen.session.sandbox,
                   grassVisual: screen.session.grassVisual,
+                  visual: screen.session.visual,
                 })
               }
             />

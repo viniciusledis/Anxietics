@@ -95,10 +95,8 @@ const pots = [
     await page
       .getByRole('button', {
         name: free
-          ? `Livre · ${game}`
-          : game === 'grass'
-            ? new RegExp(`^Comparar ${game} ·.*2D original$`)
-            : new RegExp(`^Testar ${game} ·`),
+          ? `Livre · ${game} · 2D original`
+          : new RegExp(`^Comparar ${game} ·.*2D original$`),
       })
       .nth(free ? 0 : variation)
       .click();

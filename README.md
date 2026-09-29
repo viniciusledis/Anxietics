@@ -10,18 +10,23 @@ Use Node.js 22 LTS e npm:
 
 ```sh
 npm ci
+cp .env.example .env
 npm start
 ```
 
-1. Instale um **Expo Go compatível com SDK 54**: [distribuições oficiais](https://expo.dev/go?sdkVersion=54&platform=android&device=true). Confira também a [compatibilidade do Expo Go](https://docs.expo.dev/troubleshooting/expo-go-version-mismatch/), pois a disponibilidade nas lojas muda.
+Preencha as duas variáveis públicas do Supabase antes de iniciar. A configuração
+do banco, RLS, confirmação de e-mail e o roteiro de teste estão em
+[`docs/SUPABASE_AUTH.md`](docs/SUPABASE_AUTH.md).
+
+1. Instale um **Expo Go compatível com SDK 57**: [distribuições oficiais](https://expo.dev/go?sdkVersion=57&platform=android&device=true). Confira também a [compatibilidade do Expo Go](https://docs.expo.dev/troubleshooting/expo-go-version-mismatch/), pois a disponibilidade nas lojas muda. A versão atual do Expo Go exige login na mesma conta usada pelo Expo CLI.
 2. Deixe computador e celular na mesma rede Wi-Fi.
 3. Android: abra o Expo Go e escaneie o QR code. iPhone: use a Câmera e abra o link no Expo Go.
 4. Abra a primeira etapa e arraste a máquina. Concluir libera a próxima; etapas concluídas podem ser repetidas.
 5. Para verificar persistência, espere “Salvando no aparelho…” desaparecer, feche o app e abra novamente.
 
-**As dependências utilizadas estão incluídas no Expo Go do SDK 54. Não exigem um development build.** Se não houver Expo Go compatível para seu dispositivo, será necessário usar uma compilação própria ou planejar uma atualização conjunta do SDK; não atualize módulos nativos isoladamente. Um binário iOS próprio depende das ferramentas e regras de assinatura da Apple. Suporte do SDK: Android 7+ e iOS 15.1+.
+**As dependências utilizadas estão alinhadas ao Expo SDK 57.** Para uma validação mais próxima da distribuição final, prefira um development build; o Expo Go continua útil para verificações rápidas quando incluir todos os módulos utilizados. Um binário iOS próprio depende das ferramentas e regras de assinatura da Apple. O SDK 57 requer Node.js 22.13 ou mais recente e iOS 16.4 ou mais recente; este projeto recomenda Node.js 22 LTS. O ciclo de vida UIKit por cenas está habilitado para builds com Xcode 27/iOS 27.
 
-No desenvolvimento, o Expo Go carrega o código pelo Metro. O app não usa API de jogos, login, backend, anúncios ou serviços pagos, mas uma nova abertura pelo Expo Go pode precisar do servidor de desenvolvimento. A execução offline de um binário independente ainda precisa ser validada no aparelho. Problemas de conexão: confira a rede e o firewall; `npx expo start --tunnel` é uma alternativa de desenvolvimento que depende de internet.
+No desenvolvimento, o Expo Go carrega o código pelo Metro. Login, cadastro e perfis usam Supabase; jogos e progresso continuam locais. Uma nova abertura pelo Expo Go pode precisar do servidor de desenvolvimento. A execução offline de um binário independente ainda precisa ser validada no aparelho. Problemas de conexão: confira a rede e o firewall; `npx expo start --tunnel` é uma alternativa de desenvolvimento que depende de internet.
 
 ## Jogos disponíveis
 
@@ -132,14 +137,16 @@ AsyncStorage grava JSON com esquema **versão 3**, mantendo a chave histórica `
 
 Uma fila central calcula cada alteração sobre o estado confirmado mais recente, grava o JSON completo e só então publica o resultado. Saldo e aquisição são uma única alteração. Se houver erro, o último estado confirmado é preservado; compras e recompensas não aparecem como recebidas. Tente novamente antes de sair. Fechar o processo antes de gravar pode perder a última ação. “Ajustes → Apagar dados deste aparelho” pede confirmação e apaga também XP, saldo, compras, equipamentos e jardim, iniciando um novo perfil com o presente inicial.
 
-O desenho, posições e percentual **parciais da rodada não são persistidos**. Sair ou reiniciar descarta apenas essa rodada. Segundo plano pausa o jogo e preserva a rodada se o sistema mantiver o processo vivo; voltar exige “Continuar”. Não há sincronização entre aparelhos. AsyncStorage não é criptografado; não são coletados dados pessoais, clínicos ou emocionais. Backup/desinstalação seguem a política do aparelho.
+O desenho, posições e percentual **parciais da rodada não são persistidos**. Sair ou reiniciar descarta apenas essa rodada. Segundo plano pausa o jogo e preserva a rodada se o sistema mantiver o processo vivo; voltar exige “Continuar”. O progresso dos jogos não é sincronizado entre aparelhos. A sessão de autenticação e o progresso local usam AsyncStorage; nome e e-mail ficam no Supabase, sem dados clínicos ou emocionais. Backup/desinstalação seguem a política do aparelho.
 
 ## Entendendo a arquitetura
 
 ```text
-App.tsx                       Provedores de gestos e áreas seguras
-src/navigation/               Escolha da tela e criação de partidas
-src/screens/                  Trilha, jogo, ajustes, laboratório, teste 3D, loja, inventário, conquistas e jardim
+App.tsx                       Provedores de gestos, área segura e autenticação
+src/contexts/AuthContext.tsx  Sessão, login, cadastro, logout e listener do Supabase
+src/lib/supabase.ts           Client e persistência da sessão no AsyncStorage
+src/navigation/               Proteção de fluxos e criação de partidas
+src/screens/                  Autenticação, trilha, jogos, ajustes, loja e jardim
 src/three/                    Prova de conceito 3D isolada com React Three Fiber
 src/trail/stages.ts            Ordem e estado das 14 etapas
 src/minigames/types.ts         Contratos simples: jogo, modo e partida
